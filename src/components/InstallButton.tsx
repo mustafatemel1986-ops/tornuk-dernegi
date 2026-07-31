@@ -5,6 +5,7 @@ import {
   isStandalone,
   type BeforeInstallPromptEvent,
 } from '../lib/install'
+import { trackAppInstall } from '../lib/installStats'
 
 type GuideKind = 'ios' | 'android' | 'desktop' | null
 
@@ -20,14 +21,21 @@ export function InstallButton() {
       setDeferred(event as BeforeInstallPromptEvent)
     }
 
-    function onInstalled() {
+    async function onInstalled() {
       setInstalled(true)
       setDeferred(null)
       setGuide(null)
+      await trackAppInstall()
     }
 
     window.addEventListener('beforeinstallprompt', onBeforeInstall)
     window.addEventListener('appinstalled', onInstalled)
+
+    // iOS / zaten ekli uygulama: ilk açılışta bir kez say
+    if (isStandalone()) {
+      setInstalled(true)
+      void trackAppInstall()
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstall)
@@ -35,13 +43,8 @@ export function InstallButton() {
     }
   }, [])
 
-  if (installed) {
-    return (
-      <p className="install-done" role="status">
-        Uygulama ana ekranınıza eklendi.
-      </p>
-    )
-  }
+  // Yüklü uygulamada indirme butonu hiç görünmesin
+  if (installed) return null
 
   async function handleInstall() {
     if (deferred) {
@@ -51,6 +54,7 @@ export function InstallButton() {
         const choice = await deferred.userChoice
         if (choice.outcome === 'accepted') {
           setInstalled(true)
+          await trackAppInstall()
         }
         setDeferred(null)
       } finally {

@@ -21,7 +21,7 @@ export default defineConfig(({ command }) => ({
       includeAssets: ['favicon.png', 'logo.png', 'icons/apple-touch-icon.png', 'belgeler/*.html'],
       manifest: {
         name: 'Törnük Derneği',
-        short_name: 'Törnük',
+        short_name: 'Törnük Derneği',
         description: 'Törnük Derneği üye aidat, duyuru ve etkinlik uygulaması',
         lang: 'tr',
         dir: 'ltr',
@@ -31,6 +31,7 @@ export default defineConfig(({ command }) => ({
         background_color: '#d9ecf8',
         start_url: './',
         scope: './',
+        id: './',
         icons: [
           {
             src: 'icons/icon-192.png',

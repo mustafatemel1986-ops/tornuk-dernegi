@@ -15,8 +15,9 @@ import { AidatAdmin } from './AidatAdmin'
 import { DuyurularAdmin } from './DuyurularAdmin'
 import { EtkinliklerAdmin } from './EtkinliklerAdmin'
 import { SavePanel } from './SavePanel'
+import { InstallStats } from './InstallStats'
 
-type AdminTab = 'aidat' | 'duyurular' | 'etkinlikler' | 'kaydet'
+type AdminTab = 'aidat' | 'duyurular' | 'etkinlikler' | 'indirenler' | 'kaydet'
 
 export function AdminApp() {
   const [authed, setAuthed] = useState(() => isAdminLoggedIn())
@@ -131,6 +132,7 @@ export function AdminApp() {
             ['aidat', 'Aidat'],
             ['duyurular', 'Duyurular'],
             ['etkinlikler', 'Etkinlikler'],
+            ['indirenler', 'İndirenler'],
             ['kaydet', 'Kaydet'],
           ] as const
         ).map(([id, label]) => (
@@ -175,6 +177,7 @@ export function AdminApp() {
           }}
         />
       )}
+      {tab === 'indirenler' && <InstallStats />}
       {tab === 'kaydet' && (
         <SavePanel
           members={members}
