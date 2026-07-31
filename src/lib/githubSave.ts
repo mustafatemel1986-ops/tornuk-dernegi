@@ -9,15 +9,20 @@ export type GithubSettings = {
 
 const SETTINGS_KEY = 'tornuk-github-settings'
 
+const DEFAULTS: GithubSettings = {
+  owner: 'mustafatemel1986-ops',
+  repo: 'tornuk-dernegi',
+  branch: 'main',
+  token: '',
+}
+
 export function loadGithubSettings(): GithubSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
-    if (!raw) {
-      return { owner: '', repo: 'tornuk-dernegi', branch: 'main', token: '' }
-    }
-    return { owner: '', repo: 'tornuk-dernegi', branch: 'main', token: '', ...JSON.parse(raw) }
+    if (!raw) return { ...DEFAULTS }
+    return { ...DEFAULTS, ...JSON.parse(raw) }
   } catch {
-    return { owner: '', repo: 'tornuk-dernegi', branch: 'main', token: '' }
+    return { ...DEFAULTS }
   }
 }
 

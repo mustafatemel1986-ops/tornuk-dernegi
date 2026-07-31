@@ -116,16 +116,32 @@ export function SavePanel({
       <div className="admin-panel" style={{ boxShadow: 'none' }}>
         <h2>2) GitHub’a doğrudan kaydet</h2>
         <p className="hint">
-          Klasik Personal Access Token gerekir (<code>contents:write</code>). Token yalnızca bu
-          tarayıcıda saklanır; GitHub’a yüklenmez.
+          Kullanıcı ve depo adı genelde hazır gelir. Tek seferlik gereken şey{' '}
+          <strong>Access Token</strong>. Bu bilgisayarda bir kez yazınca tarayıcı hatırlar; her duyuruda
+          yeniden girmeniz gerekmez.
         </p>
+        <ol className="hint" style={{ paddingLeft: '1.2rem', margin: '0.5rem 0 1rem' }}>
+          <li>
+            GitHub’da{' '}
+            <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer">
+              Settings → Developer settings → Personal access tokens
+            </a>
+          </li>
+          <li>
+            <strong>Generate new token (classic)</strong> → süre seçin → sadece{' '}
+            <code>repo</code> yetkisini işaretleyin → Generate
+          </li>
+          <li>
+            Çıkan <code>ghp_...</code> kodunu kopyalayıp aşağıdaki Access Token alanına yapıştırın
+          </li>
+        </ol>
         <div className="admin-fields two">
           <label className="admin-label">
-            GitHub kullanıcı / org
+            GitHub kullanıcı adı
             <input
               value={settings.owner}
               onChange={(e) => setSettings((s) => ({ ...s, owner: e.target.value.trim() }))}
-              placeholder="ornek-kullanici"
+              placeholder="mustafatemel1986-ops"
             />
           </label>
           <label className="admin-label">
@@ -145,7 +161,7 @@ export function SavePanel({
             />
           </label>
           <label className="admin-label">
-            Access Token
+            Access Token (bir kez)
             <input
               type="password"
               value={settings.token}
