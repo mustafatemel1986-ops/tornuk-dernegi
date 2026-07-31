@@ -5,36 +5,41 @@ import sharp from 'sharp'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = join(root, 'public', 'icons')
+const logoPath = join(root, 'public', 'logo.png')
 mkdirSync(outDir, { recursive: true })
 
-const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="96" fill="#0F4C5C"/>
-  <path d="M256 96c-40 50-100 78-100 146a100 100 0 1 0 200 0c0-68-60-96-100-146Z" stroke="#F3F6F4" stroke-width="28"/>
-  <path d="M256 256v64M220 296h72" stroke="#C9A227" stroke-width="28" stroke-linecap="round"/>
-</svg>
-`
-
-const maskableSvg = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" fill="#0F4C5C"/>
-  <path d="M256 128c-34 42-84 66-84 122a84 84 0 1 0 168 0c0-56-50-80-84-122Z" stroke="#F3F6F4" stroke-width="26"/>
-  <path d="M256 268v56M224 304h64" stroke="#C9A227" stroke-width="26" stroke-linecap="round"/>
-</svg>
-`
-
-const sizes = [
-  { name: 'icon-192.png', size: 192, source: svg },
-  { name: 'icon-512.png', size: 512, source: svg },
-  { name: 'maskable-512.png', size: 512, source: maskableSvg },
-  { name: 'apple-touch-icon.png', size: 180, source: svg },
-]
-
-for (const item of sizes) {
-  await sharp(Buffer.from(item.source))
-    .resize(item.size, item.size)
-    .png()
-    .toFile(join(outDir, item.name))
+async function makeIcon(name, size, { padded = false } = {}) {
+  const out = join(outDir, name)
+  if (padded) {
+    // Maskable: logo ortada, mavi zemin + güvenli kenar boşluğu
+    const inner = Math.round(size * 0.72)
+    const logo = await sharp(logoPath).resize(inner, inner, { fit: 'contain' }).png().toBuffer()
+    await sharp({
+      create: {
+        width: size,
+        height: size,
+        channels: 4,
+        background: { r: 30, g: 90, b: 168, alpha: 1 },
+      },
+    })
+      .composite([{ input: logo, gravity: 'centre' }])
+      .png()
+      .toFile(out)
+  } else {
+    await sharp(logoPath)
+      .resize(size, size, { fit: 'cover' })
+      .png()
+      .toFile(out)
+  }
 }
 
-console.log('✓ PWA ikonları üretildi → public/icons/')
+await makeIcon('icon-192.png', 192)
+await makeIcon('icon-512.png', 512)
+await makeIcon('maskable-512.png', 512, { padded: true })
+await makeIcon('apple-touch-icon.png', 180)
+await makeIcon('favicon-32.png', 32)
+
+// Ana favicon olarak da kopyala
+await sharp(logoPath).resize(64, 64, { fit: 'cover' }).png().toFile(join(root, 'public', 'favicon.png'))
+
+console.log('✓ Logo ikonları üretildi → public/icons/ + favicon.png')

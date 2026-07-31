@@ -77,6 +77,15 @@
   height: 28px;
 }
 
+.brand-logo {
+  width: clamp(72px, 18vw, 96px);
+  height: clamp(72px, 18vw, 96px);
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 12px 32px rgba(30, 90, 168, 0.28);
+  background: #d9ecf8;
+}
+
 .brand h1 {
   margin: 0;
   font-family: var(--font-display);

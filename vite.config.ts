@@ -18,7 +18,7 @@ export default defineConfig(({ command }) => ({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png', 'belgeler/*.html'],
+      includeAssets: ['favicon.png', 'logo.png', 'icons/apple-touch-icon.png', 'belgeler/*.html'],
       manifest: {
         name: 'Törnük Derneği',
         short_name: 'Törnük',
@@ -27,8 +27,8 @@ export default defineConfig(({ command }) => ({
         dir: 'ltr',
         display: 'standalone',
         orientation: 'portrait-primary',
-        theme_color: '#0f4c5c',
-        background_color: '#f3f6f4',
+        theme_color: '#1e5aa8',
+        background_color: '#d9ecf8',
         start_url: './',
         scope: './',
         icons: [

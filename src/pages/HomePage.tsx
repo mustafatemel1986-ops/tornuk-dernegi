@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { BrandMark } from '../components/BrandMark'
 import { InstallButton } from '../components/InstallButton'
 import { formatDate } from '../lib/format'
 import {
@@ -50,13 +51,7 @@ export function HomePage({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
   return (
     <section className="page home-page">
       <header className="brand">
-        <div className="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M12 3c-2.8 3.4-7 5.4-7 10a7 7 0 0 0 14 0c0-4.6-4.2-6.6-7-10Z" />
-            <path d="M12 14v4" />
-            <path d="M9.5 16.5h5" />
-          </svg>
-        </div>
+        <BrandMark size={88} />
         <h1>Törnük Derneği</h1>
         <p>{assoc?.shortDescription ?? 'Üye aidat, duyuru ve etkinlik uygulaması.'}</p>
         <InstallButton />

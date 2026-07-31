@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { BrandMark } from '../components/BrandMark'
 import { setAdminLoggedIn, verifyAdminPin } from '../lib/adminAuth'
 
 export function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
@@ -27,6 +28,7 @@ export function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form className="admin-login" onSubmit={(e) => void onSubmit(e)}>
+      <BrandMark size={72} />
       <h1>Yönetim paneli</h1>
       <p>Aidat, duyuru ve etkinlikleri buradan güncelleyebilirsiniz.</p>
       <label className="admin-label">
