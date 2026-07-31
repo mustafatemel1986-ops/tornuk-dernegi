@@ -1,6 +1,27 @@
 {
-  "updatedAt": "2026-07-31T12:00:00+03:00",
+  "updatedAt": "2026-07-31T14:30:16.505Z",
   "items": [
+    {
+      "id": "duyuru-2026-07-31-denem",
+      "title": "denem",
+      "summary": "denem",
+      "body": "amkfasşldmaslşfmsaşfmas",
+      "date": "2026-07-31"
+    },
+    {
+      "id": "duyuru-2026-07-31-deneme",
+      "title": "deneme",
+      "summary": "dene",
+      "body": "deneme",
+      "date": "2026-07-31"
+    },
+    {
+      "id": "duyuru-2026-07-31-test",
+      "title": "Test",
+      "summary": "bildirim test",
+      "body": "bildirim test",
+      "date": "2026-07-31"
+    },
     {
       "id": "duyuru-2026-07-genel-kurul",
       "title": "Olağan Genel Kurul Duyurusu",
