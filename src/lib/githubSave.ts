@@ -30,47 +30,129 @@ export function saveGithubSettings(settings: GithubSettings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
 }
 
-async function upsertFile(
-  settings: GithubSettings,
-  path: string,
-  content: string,
-  message: string,
-) {
-  const headers = {
+function apiHeaders(token: string) {
+  return {
     Accept: 'application/vnd.github+json',
-    Authorization: `Bearer ${settings.token}`,
+    Authorization: `Bearer ${token}`,
     'X-GitHub-Api-Version': '2022-11-28',
   }
+}
 
-  const getUrl = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}?ref=${settings.branch}`
-  const existing = await fetch(getUrl, { headers })
-  let sha: string | undefined
-  if (existing.ok) {
-    const data = (await existing.json()) as { sha: string }
-    sha = data.sha
-  } else if (existing.status !== 404) {
-    const err = await existing.text()
-    throw new Error(`Dosya okunamadı (${path}): ${err}`)
-  }
-
-  const putRes = await fetch(
-    `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}`,
-    {
-      method: 'PUT',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message,
-        content: toBase64Utf8(content),
-        branch: settings.branch,
-        sha,
-      }),
+async function githubJson<T>(
+  url: string,
+  token: string,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      ...apiHeaders(token),
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...init?.headers,
     },
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`${res.status} ${url}: ${err}`)
+  }
+  return (await res.json()) as T
+}
+
+/** Tek commit ile birden fazla dosya yazar (409 SHA çakışmasını önler). */
+async function commitFilesOnBranch(
+  settings: GithubSettings,
+  branch: string,
+  files: { path: string; content: string }[],
+  message: string,
+) {
+  const base = `https://api.github.com/repos/${settings.owner}/${settings.repo}`
+  const token = settings.token
+
+  const ref = await githubJson<{ object: { sha: string } }>(
+    `${base}/git/ref/heads/${encodeURIComponent(branch)}`,
+    token,
+  )
+  const latestCommitSha = ref.object.sha
+
+  const latestCommit = await githubJson<{ tree: { sha: string } }>(
+    `${base}/git/commits/${latestCommitSha}`,
+    token,
   )
 
-  if (!putRes.ok) {
-    const err = await putRes.text()
-    throw new Error(`Kayıt başarısız (${path}): ${err}`)
+  const treeItems: { path: string; mode: '100644'; type: 'blob'; sha: string }[] = []
+  for (const file of files) {
+    const blob = await githubJson<{ sha: string }>(`${base}/git/blobs`, token, {
+      method: 'POST',
+      body: JSON.stringify({
+        content: toBase64Utf8(file.content),
+        encoding: 'base64',
+      }),
+    })
+    treeItems.push({
+      path: file.path,
+      mode: '100644',
+      type: 'blob',
+      sha: blob.sha,
+    })
   }
+
+  const tree = await githubJson<{ sha: string }>(`${base}/git/trees`, token, {
+    method: 'POST',
+    body: JSON.stringify({
+      base_tree: latestCommit.tree.sha,
+      tree: treeItems,
+    }),
+  })
+
+  const commit = await githubJson<{ sha: string }>(`${base}/git/commits`, token, {
+    method: 'POST',
+    body: JSON.stringify({
+      message,
+      tree: tree.sha,
+      parents: [latestCommitSha],
+    }),
+  })
+
+  const update = await fetch(`${base}/git/refs/heads/${encodeURIComponent(branch)}`, {
+    method: 'PATCH',
+    headers: { ...apiHeaders(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sha: commit.sha }),
+  })
+
+  if (update.status === 422 || update.status === 409) {
+    throw new Error('CONFLICT')
+  }
+  if (!update.ok) {
+    throw new Error(`Dal güncellenemedi (${branch}): ${await update.text()}`)
+  }
+}
+
+async function commitFilesWithRetry(
+  settings: GithubSettings,
+  branch: string,
+  files: { path: string; content: string }[],
+  message: string,
+) {
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await commitFilesOnBranch(settings, branch, files, message)
+      return
+    } catch (error) {
+      lastError = error
+      const text = error instanceof Error ? error.message : String(error)
+      if (text === 'CONFLICT' || text.includes('"status": "409"') || text.includes(' 409 ')) {
+        await new Promise((r) => window.setTimeout(r, 400 * (attempt + 1)))
+        continue
+      }
+      throw error
+    }
+  }
+  throw new Error(
+    `Kayıt çakışması (${branch}). Birkaç saniye sonra tekrar deneyin. ${
+      lastError instanceof Error ? lastError.message : ''
+    }`,
+  )
 }
 
 export async function pushAdminData(
@@ -82,15 +164,18 @@ export async function pushAdminData(
   }
 
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ')
-  const liveBranch = { ...settings, branch: 'gh-pages' }
+  const message = `admin: veri güncellendi (${stamp})`
 
-  for (const file of files) {
-    const content = `${JSON.stringify(file.data, null, 2)}\n`
-    const message = `admin: ${file.path} güncellendi (${stamp})`
-    // Kaynak dal (main): public/data/...
-    await upsertFile(settings, file.path, content, message)
-    // Canlı site (gh-pages): data/... — üyelerin hemen görmesi için
-    const livePath = file.path.replace(/^public\//, '')
-    await upsertFile(liveBranch, livePath, content, message)
-  }
+  const mainFiles = files.map((file) => ({
+    path: file.path,
+    content: `${JSON.stringify(file.data, null, 2)}\n`,
+  }))
+
+  const liveFiles = files.map((file) => ({
+    path: file.path.replace(/^public\//, ''),
+    content: `${JSON.stringify(file.data, null, 2)}\n`,
+  }))
+
+  await commitFilesWithRetry(settings, settings.branch || 'main', mainFiles, message)
+  await commitFilesWithRetry(settings, 'gh-pages', liveFiles, message)
 }
