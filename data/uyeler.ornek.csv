@@ -1,0 +1,6 @@
+tc,ad_soyad,borc_tutari,borclu_aylar,son_odeme,not,yil_gecmis
+10000000146,Ahmet Yılmaz,300,2026-05;2026-06;2026-07,2026-04-10,,2026:borclu:300;2025:odendi;2024:odendi
+12345678950,Ayşe Demir,0,,,Güncel,2026:odendi;2025:odendi;2024:odendi
+23456789060,Mehmet Kaya,400,2026-06;2026-07,2026-05-15,İki aylık borç,2026:borclu:200;2025:odendi;2024:borclu:200
+34567890170,Fatma Çelik,100,2026-07,2026-06-20,,2026:borclu:100;2025:odendi;2024:odendi
+45678901280,Ali Öztürk,800,2026-03;2026-04;2026-05;2026-06;2026-07,2026-02-28,Ödeme planı görüşülecek,2026:borclu:500;2025:borclu:300;2024:odendi

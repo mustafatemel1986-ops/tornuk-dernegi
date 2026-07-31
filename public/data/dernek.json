@@ -1,0 +1,66 @@
+{
+  "name": "Törnük Derneği",
+  "shortDescription": "Dayanışma, yardımlaşma ve kültürel bağlarımızı güçlendirmek için kurulmuş üye derneğimiz.",
+  "address": "Törnük Mahallesi, Örnek Sokak No:1\nMerkez / Türkiye",
+  "phone": "+90 500 000 00 00",
+  "email": "info@tornukdernegi.org",
+  "workingHours": "Hafta içi 10:00 – 18:00",
+  "board": [
+    { "role": "Başkan", "name": "Örnek Başkan" },
+    { "role": "Başkan Yardımcısı", "name": "Örnek Yardımcı" },
+    { "role": "Muhasip", "name": "Örnek Muhasip" },
+    { "role": "Sekreter", "name": "Örnek Sekreter" }
+  ],
+  "donation": {
+    "bankName": "Örnek Bankası",
+    "accountName": "Törnük Derneği",
+    "iban": "TR00 0000 0000 0000 0000 0000 00",
+    "note": "Açıklama kısmına adınızı soyadınızı ve \"aidat\" veya \"bağış\" yazınız."
+  },
+  "documents": [
+    {
+      "id": "tuzuk",
+      "title": "Dernek Tüzüğü",
+      "description": "Derneğin amaçları, üyelik ve işleyiş esasları",
+      "url": "belgeler/tuzuk.html"
+    },
+    {
+      "id": "uye-formu",
+      "title": "Üyelik Başvuru Formu",
+      "description": "Yeni üyelik için doldurulacak form",
+      "url": "belgeler/uye-basvuru-formu.html"
+    },
+    {
+      "id": "tutanak-ornek",
+      "title": "Toplantı Tutanağı Örneği",
+      "description": "Genel kurul / yönetim toplantı tutanağı şablonu",
+      "url": "belgeler/toplanti-tutanagi.html"
+    }
+  ],
+  "faq": [
+    {
+      "q": "Aidat borcumu nasıl öğrenebilirim?",
+      "a": "Aidat sekmesine girip T.C. kimlik numaranızı yazarak borç durumunuzu anında görebilirsiniz."
+    },
+    {
+      "q": "Aidatımı nasıl öderim?",
+      "a": "Bağış / Ödeme bölümündeki IBAN'a havale/EFT yapabilirsiniz. Açıklamaya adınızı ve \"aidat\" yazmayı unutmayın. Dekontu dernek yönetimine iletebilirsiniz."
+    },
+    {
+      "q": "Aylık aidat tutarı nedir?",
+      "a": "Güncel aylık aidat tutarı Aidat sekmesinin altında ve uygulama ana sayfasında görüntülenir."
+    },
+    {
+      "q": "Bildirimleri nasıl açarım?",
+      "a": "Uygulamayı ana ekrana ekledikten sonra Menü > Bildirimler bölümünden izin verin. Yeni duyurularda telefonunuza uyarı gelir."
+    },
+    {
+      "q": "Yönetim ile nasıl iletişime geçerim?",
+      "a": "Dernek Bilgileri sayfasındaki telefon ve e-posta adreslerini kullanabilirsiniz."
+    },
+    {
+      "q": "Üyelik için ne yapmalıyım?",
+      "a": "Belgeler bölümündeki üyelik formunu doldurup dernek yönetimine teslim ediniz."
+    }
+  ]
+}
