@@ -40,7 +40,6 @@ Yerelde: `http://localhost:5173/#admin`
 
 Uygulama içinden: **Menü → Özet → Yönetim paneli**
 
-Varsayılan PIN: `tornuk2026`  
 PIN hash’i `public/data/admin.json` içindedir. Değiştirmek için:
 
 ```bash
