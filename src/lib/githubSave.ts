@@ -77,8 +77,15 @@ export async function pushAdminData(
   }
 
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  const liveBranch = { ...settings, branch: 'gh-pages' }
+
   for (const file of files) {
     const content = `${JSON.stringify(file.data, null, 2)}\n`
-    await upsertFile(settings, file.path, content, `admin: ${file.path} güncellendi (${stamp})`)
+    const message = `admin: ${file.path} güncellendi (${stamp})`
+    // Kaynak dal (main): public/data/...
+    await upsertFile(settings, file.path, content, message)
+    // Canlı site (gh-pages): data/... — üyelerin hemen görmesi için
+    const livePath = file.path.replace(/^public\//, '')
+    await upsertFile(liveBranch, livePath, content, message)
   }
 }

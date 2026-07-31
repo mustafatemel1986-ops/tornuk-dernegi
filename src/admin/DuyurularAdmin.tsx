@@ -66,7 +66,8 @@ export function DuyurularAdmin({
     <div className="admin-panel">
       <h2>Duyurular</h2>
       <p className="hint">
-        Yeni duyuru listenin en üstüne eklenir. Bildirimleri açmış üyeler yeni kaydı algılar.
+        Yeni duyuru listenin en üstüne eklenir. Üyelerin görmesi ve bildirim alması için sonra{' '}
+        <strong>Kaydet</strong> sekmesinden “GitHub’a kaydet ve yayınla” yapın.
       </p>
 
       <div className="admin-fields">

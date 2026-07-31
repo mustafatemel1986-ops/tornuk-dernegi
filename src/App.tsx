@@ -3,6 +3,8 @@ import './App.css'
 import { AdminApp } from './admin/AdminApp'
 import { BottomNav } from './components/BottomNav'
 import { isAdminRoute, normalizeAdminUrl } from './lib/adminRoute'
+import { isStandalone } from './lib/install'
+import { trackAppInstall } from './lib/installStats'
 import {
   askServiceWorkerToCheck,
   checkDuyurularInPage,
@@ -46,6 +48,11 @@ function MemberApp() {
   }, [tab])
 
   useEffect(() => {
+    // Ana ekrana ekli uygulamada indirme sayacını bir kez artır
+    if (isStandalone()) void trackAppInstall()
+  }, [])
+
+  useEffect(() => {
     let cancelled = false
 
     async function runCheck() {
@@ -56,10 +63,7 @@ function MemberApp() {
           if (swControlled) await askServiceWorkerToCheck()
         }
         const result = await checkDuyurularInPage({
-          notify:
-            getNotifyPreference() &&
-            !swControlled &&
-            document.visibilityState === 'visible',
+          notify: getNotifyPreference() && document.visibilityState === 'visible',
         })
         if (!cancelled && result.isNew) setDuyuruBadge(true)
       } catch {
@@ -74,7 +78,8 @@ function MemberApp() {
     }
 
     document.addEventListener('visibilitychange', onVisible)
-    const timer = window.setInterval(() => void runCheck(), 5 * 60 * 1000)
+    // Bildirimler için daha sık kontrol (özellikle iPhone arka planda çalışmaz)
+    const timer = window.setInterval(() => void runCheck(), 60 * 1000)
 
     return () => {
       cancelled = true

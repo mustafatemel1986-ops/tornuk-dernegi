@@ -1,46 +1,36 @@
 const COUNTED_KEY = 'tornuk-install-counted'
-const NAMESPACE = 'tornuk-dernegi-gumushane'
-const KEY = 'app-installs'
-
-/** Karşıya yazılabilir ücretsiz sayaç (GitHub Pages için). */
-function counterUrl(action: 'get' | 'up') {
-  const base = `https://api.counterapi.dev/v1/${NAMESPACE}/${KEY}`
-  return action === 'up' ? `${base}/up` : base
-}
+/** Abacus — tarayıcıdan CORS ile çalışır (counterapi.dev çalışmıyor). */
+const HIT_URL = 'https://abacus.jasoncameron.dev/hit/tornuk-dernegi/app-installs'
+const GET_URL = 'https://abacus.jasoncameron.dev/get/tornuk-dernegi/app-installs'
 
 type CounterResponse = {
-  value?: number
-  count?: number
+  value?: number | string
+  count?: number | string
 }
 
 function readCount(data: CounterResponse): number {
-  if (typeof data.value === 'number') return data.value
-  if (typeof data.count === 'number') return data.count
-  return 0
+  const raw = data.value ?? data.count
+  const n = typeof raw === 'string' ? Number(raw) : raw
+  return typeof n === 'number' && Number.isFinite(n) ? n : 0
 }
 
 export async function getInstallCount(): Promise<number> {
-  try {
-    const res = await fetch(counterUrl('get'), { cache: 'no-store' })
-    if (!res.ok) throw new Error('Sayaç okunamadı')
-    return readCount((await res.json()) as CounterResponse)
-  } catch {
-    return 0
-  }
+  const res = await fetch(GET_URL, { cache: 'no-store' })
+  if (!res.ok) throw new Error('Sayaç okunamadı')
+  return readCount((await res.json()) as CounterResponse)
 }
 
 export async function trackAppInstall(): Promise<number | null> {
   if (localStorage.getItem(COUNTED_KEY) === '1') return null
 
   try {
-    const res = await fetch(counterUrl('up'), { cache: 'no-store' })
+    const res = await fetch(HIT_URL, { cache: 'no-store' })
     if (!res.ok) throw new Error('Sayaç artırılamadı')
     const count = readCount((await res.json()) as CounterResponse)
     localStorage.setItem(COUNTED_KEY, '1')
     return count
   } catch {
-    // Ağ yoksa yine de işaretle; tekrar sayılmasın
-    localStorage.setItem(COUNTED_KEY, '1')
+    // Başarısızsa işaretleme — bir sonraki açılışta tekrar denensin
     return null
   }
 }

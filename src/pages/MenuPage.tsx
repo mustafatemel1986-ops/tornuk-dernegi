@@ -106,8 +106,9 @@ export function MenuPage() {
           <div className="panel">
             <h2 className="panel-title">Bildirimler</h2>
             <p className="hint">
-              Uygulamayı ana ekrana ekleyip bildirimleri açarsanız yeni duyurularda telefonunuza
-              uyarı gelir.
+              Ana ekrana eklenmiş uygulamada Menü → Bildirimleri Aç. Yeni duyuru için yönetici
+              “Kaydet / Yayınla” ile GitHub’a basmalıdır. iPhone’da uygulama kapalıyken anlık push
+              yoktur; uygulamayı açınca veya açıkken uyarı gelir.
             </p>
             <button type="button" className="btn btn-primary" onClick={() => void toggleNotify()}>
               {notifyOn ? 'Bildirimleri Kapat' : 'Bildirimleri Aç'}
