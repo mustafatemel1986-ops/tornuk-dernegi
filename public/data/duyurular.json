@@ -1,6 +1,13 @@
 {
-  "updatedAt": "2026-08-03T07:48:06.802Z",
+  "updatedAt": "2026-08-03T07:59:01.325Z",
   "items": [
+    {
+      "id": "duyuru-2026-08-03-mscxu3m5-soner",
+      "title": "Soner",
+      "summary": "Şahin",
+      "body": "Son deneme artık",
+      "date": "2026-08-03"
+    },
     {
       "id": "duyuru-2026-08-03-mscxg2ky-haka",
       "title": "haka",
