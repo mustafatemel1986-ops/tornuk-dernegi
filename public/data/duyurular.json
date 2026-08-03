@@ -1,6 +1,69 @@
 {
-  "updatedAt": "2026-08-03T10:25:02.942Z",
+  "updatedAt": "2026-08-03T07:59:01.325Z",
   "items": [
+    {
+      "id": "duyuru-2026-08-03-mscxu3m5-soner",
+      "title": "Soner",
+      "summary": "Şahin",
+      "body": "Son deneme artık",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-mscxg2ky-haka",
+      "title": "haka",
+      "summary": "hakan",
+      "body": "faka basmasz",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-deneme",
+      "title": "Deneme",
+      "summary": "Deneme için test",
+      "body": "Bu bildirim size törnük derneği uygulamasından deneme amaçlı atılmıştır.",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-ad",
+      "title": "ad",
+      "summary": "ad",
+      "body": "ad",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-gata",
+      "title": "gata",
+      "summary": "gata",
+      "body": "gata",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-fasa",
+      "title": "fasa",
+      "summary": "fasa",
+      "body": "fasa",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-07-31-denem",
+      "title": "denem",
+      "summary": "denem",
+      "body": "amkfasşldmaslşfmsaşfmas",
+      "date": "2026-07-31"
+    },
+    {
+      "id": "duyuru-2026-07-31-deneme",
+      "title": "deneme",
+      "summary": "dene",
+      "body": "deneme",
+      "date": "2026-07-31"
+    },
+    {
+      "id": "duyuru-2026-07-31-test",
+      "title": "Test",
+      "summary": "bildirim test",
+      "body": "bildirim test",
+      "date": "2026-07-31"
+    },
     {
       "id": "duyuru-2026-07-genel-kurul",
       "title": "Olağan Genel Kurul Duyurusu",
