@@ -12,6 +12,8 @@ dist
 dist-ssr
 dev-dist
 *.local
+.env
+.env.production.local
 
 # Gerçek TC içeren üye listesi — yalnızca yerel tutun
 data/uyeler.csv

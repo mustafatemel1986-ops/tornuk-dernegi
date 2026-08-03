@@ -1,0 +1,10 @@
+name = "tornuk-publish"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+# Gizli değerler (repoya koyulmaz):
+#   npx wrangler secret put GITHUB_TOKEN
+#   npx wrangler secret put ADMIN_PIN_HASH
+#
+# ADMIN_PIN_HASH = public/data/admin.json içindeki passwordHash ile aynı olmalı.

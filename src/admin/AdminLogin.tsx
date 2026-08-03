@@ -17,7 +17,7 @@ export function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
         setError('PIN hatalı.')
         return
       }
-      setAdminLoggedIn(true)
+      setAdminLoggedIn(true, pin)
       onSuccess()
     } catch {
       setError('Giriş kontrolü yapılamadı.')

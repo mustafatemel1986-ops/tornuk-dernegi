@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { loadGithubSettings } from '../lib/githubSave'
 import type { EventItem, EventsData } from '../types'
 
 function todayIso() {
@@ -37,10 +36,6 @@ export function EtkinliklerAdmin({
   const [err, setErr] = useState<string | null>(null)
 
   async function publishImmediate(next: EventsData, successText: string) {
-    if (!loadGithubSettings().token) {
-      setErr('Access Token yok. Duyurular sekmesinden bir kez kaydedin.')
-      return false
-    }
     setBusy(true)
     setMsg(null)
     setErr(null)
@@ -96,7 +91,7 @@ export function EtkinliklerAdmin({
     <div className="admin-panel">
       <h2>Etkinlikler</h2>
       <p className="hint">
-        <strong>Etkinlik ekle</strong> hemen canlıya yayınlar. Kaydet menüsüne gerek yok.
+        <strong>Etkinlik ekle</strong> hemen canlıya yayınlanır. Yalnızca yönetici PIN’i yeterlidir.
       </p>
 
       <div className="admin-fields">

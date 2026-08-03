@@ -1,5 +1,4 @@
-import { useMemo, useState } from 'react'
-import { loadGithubSettings, saveGithubSettings } from '../lib/githubSave'
+import { useState } from 'react'
 import { publishDuyuruToNtfy, waitForLiveDuyuru } from '../lib/ntfyPush'
 import type { Announcement, AnnouncementsData } from '../types'
 
@@ -23,9 +22,7 @@ export function DuyurularAdmin({
   onPublishNow,
 }: {
   data: AnnouncementsData
-  /** Düzenleme — üst bileşen debounce ile yayınlar */
   onChange: (next: AnnouncementsData) => void
-  /** Ekle / sil / sıra — hemen yayın */
   onPublishNow: (next: AnnouncementsData, successText: string) => Promise<void>
 }) {
   const [draft, setDraft] = useState({
@@ -34,21 +31,11 @@ export function DuyurularAdmin({
     body: '',
     date: todayIso(),
   })
-  const [tokenInput, setTokenInput] = useState(() => loadGithubSettings().token)
-  const [setupDone, setSetupDone] = useState(() => Boolean(loadGithubSettings().token))
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  const hasToken = useMemo(() => setupDone && Boolean(loadGithubSettings().token), [setupDone, busy])
-
   async function publishImmediate(next: AnnouncementsData, successText: string): Promise<boolean> {
-    if (!loadGithubSettings().token) {
-      setSetupDone(false)
-      setErr('Önce Access Token’ı bir kez kaydedin (aşağıdaki kutu).')
-      return false
-    }
-
     setBusy(true)
     setMsg(null)
     setErr(null)
@@ -57,31 +44,11 @@ export function DuyurularAdmin({
       setMsg(successText)
       return true
     } catch (error) {
-      const text = error instanceof Error ? error.message : 'Yayın başarısız.'
-      setErr(text)
-      if (
-        text.toLowerCase().includes('token') ||
-        text.includes('401') ||
-        text.includes('Bad credentials')
-      ) {
-        setSetupDone(false)
-      }
+      setErr(error instanceof Error ? error.message : 'Yayın başarısız.')
       return false
     } finally {
       setBusy(false)
     }
-  }
-
-  function saveTokenOnce() {
-    const token = tokenInput.trim()
-    if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
-      setErr('Geçerli bir GitHub token yapıştırın (genelde ghp_ ile başlar).')
-      return
-    }
-    saveGithubSettings({ ...loadGithubSettings(), token })
-    setSetupDone(true)
-    setErr(null)
-    setMsg('Token kaydedildi. Artık “Duyuru ekle” canlıya hemen yayınlar.')
   }
 
   function updateItem(id: string, patch: Partial<Announcement>) {
@@ -110,7 +77,6 @@ export function DuyurularAdmin({
 
     setDraft({ title: '', summary: '', body: '', date: todayIso() })
 
-    // Bildirim: önce canlı JSON’da görünsün, sonra ntfy (liste–bildirim uyumsuzluğu olmasın)
     try {
       const live = await waitForLiveDuyuru(item.id)
       if (live) {
@@ -126,9 +92,7 @@ export function DuyurularAdmin({
         )
       }
     } catch {
-      setMsg(
-        'Duyuru yayınlandı. Anlık bildirim gönderilemedi; üyeler uygulamayı açınca görür.',
-      )
+      setMsg('Duyuru yayınlandı. Anlık bildirim gönderilemedi; üyeler uygulamayı açınca görür.')
     }
   }
 
@@ -155,39 +119,8 @@ export function DuyurularAdmin({
     <div className="admin-panel">
       <h2>Duyurular</h2>
       <p className="hint">
-        <strong>Duyuru ekle</strong> = hemen canlı siteye ve üye uygulamalarına gider. Kaydet
-        menüsüne girmenize gerek yok.
+        <strong>Duyuru ekle</strong> hemen canlıya yayınlanır. Yalnızca yönetici PIN’i yeterlidir.
       </p>
-
-      {!hasToken && (
-        <div className="admin-panel" style={{ boxShadow: 'none', border: '1px solid #d8b4a0' }}>
-          <h3 className="panel-title">İlk kurulum (bir kez)</h3>
-          <ol className="hint" style={{ paddingLeft: '1.2rem' }}>
-            <li>
-              <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer">
-                Token oluşturun
-              </a>{' '}
-              (classic, sadece <code>repo</code>)
-            </li>
-            <li>
-              <code>ghp_...</code> kodunu yapıştırıp kaydedin — bir daha sormaz
-            </li>
-          </ol>
-          <label className="admin-label">
-            Access Token
-            <input
-              type="password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value.trim())}
-              placeholder="ghp_..."
-              autoComplete="off"
-            />
-          </label>
-          <button type="button" className="btn btn-primary" onClick={saveTokenOnce}>
-            Token’ı kaydet
-          </button>
-        </div>
-      )}
 
       <div className="admin-fields">
         <label className="admin-label">

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { isAdminLoggedIn, setAdminLoggedIn } from '../lib/adminAuth'
-import { loadGithubSettings, pushAdminData, saveGithubSettings } from '../lib/githubSave'
+import { getAdminSessionPin, isAdminLoggedIn, setAdminLoggedIn } from '../lib/adminAuth'
+import { pushAdminData } from '../lib/githubSave'
 import {
   clearLiveData,
   getLiveAnnouncements,
@@ -135,19 +135,16 @@ export function AdminApp() {
   }, [authed, reloadToken])
 
   const publishNow = useCallback(async (successText?: string) => {
-    const settings = loadGithubSettings()
-    if (!settings.token) {
-      throw new Error(
-        'Access Token yok. Duyurular sekmesindeki “İlk kurulum”dan bir kez token kaydedin.',
-      )
+    const pin = getAdminSessionPin()
+    if (!pin) {
+      throw new Error('Oturum süresi dolmuş. Yönetim paneline tekrar giriş yapın.')
     }
-    saveGithubSettings(settings)
     setPublishing(true)
     setPublishNote(null)
 
     try {
       // Kuyruk işi ÇALIŞIRKEN dataRef okunur — eski snapshot ile üzerine yazılmaz
-      await pushAdminData(settings, () => {
+      await pushAdminData(pin, () => {
         const snap = dataRef.current
         if (!snap.members || !snap.announcements || !snap.events) {
           throw new Error('Veriler henüz yüklenmedi.')

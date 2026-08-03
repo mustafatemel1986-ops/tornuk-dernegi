@@ -1,5 +1,6 @@
 const SESSION_KEY = 'tornuk-admin-session'
-const SALT = 'tornuk-admin-v1'
+const PIN_KEY = 'tornuk-admin-pin'
+export const SALT = 'tornuk-admin-v1'
 
 export async function hashPassword(pin: string): Promise<string> {
   const data = new TextEncoder().encode(`${SALT}:${pin.trim()}`)
@@ -23,7 +24,17 @@ export function isAdminLoggedIn(): boolean {
   return sessionStorage.getItem(SESSION_KEY) === '1'
 }
 
-export function setAdminLoggedIn(value: boolean) {
-  if (value) sessionStorage.setItem(SESSION_KEY, '1')
-  else sessionStorage.removeItem(SESSION_KEY)
+/** Oturum boyunca yayın için PIN (sekme kapanınca silinir). */
+export function getAdminSessionPin(): string | null {
+  return sessionStorage.getItem(PIN_KEY)
+}
+
+export function setAdminLoggedIn(value: boolean, pin?: string) {
+  if (value) {
+    sessionStorage.setItem(SESSION_KEY, '1')
+    if (pin) sessionStorage.setItem(PIN_KEY, pin.trim())
+  } else {
+    sessionStorage.removeItem(SESSION_KEY)
+    sessionStorage.removeItem(PIN_KEY)
+  }
 }
