@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-03T12:58:33.777Z",
+  "updatedAt": "2026-08-03T14:05:08.273Z",
   "items": [
     {
       "id": "duyuru-2026-08-03-msd8ivvv-android",
@@ -13,9 +13,17 @@
       "id": "etk-2026-08-03-msd8j8py-bildirim-etkinlik",
       "kind": "etkinlik",
       "title": "Bildirim etkinlik",
-      "body": "2026-08-03 · 14:00 · Dernek Lokali",
+      "body": "2026-08-03 Â· 14:00 Â· Dernek Lokali",
       "url": "https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=etkinlikler&r=1785761913310&etkinlik=etk-2026-08-03-msd8j8py-bildirim-etkinlik",
       "createdAt": "2026-08-03T12:58:33.310Z"
+    },
+    {
+      "id": "duyuru-2026-08-03-msdawt7m-deneme-duyurusu",
+      "kind": "duyuru",
+      "title": "Deneme Duyurusu",
+      "body": "Deneme",
+      "url": "https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=duyurular&r=1785765907488&duyuru=duyuru-2026-08-03-msdawt7m-deneme-duyurusu",
+      "createdAt": "2026-08-03T14:05:07.488Z"
     }
   ]
 }
