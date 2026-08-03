@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-/** tornuk-sw-v2026-08-03c — force update */
+/** tornuk-sw-v2026-08-03d — notify only latest */
 import {
   cleanupOutdatedCaches,
   createHandlerBoundToURL,
@@ -104,22 +104,18 @@ async function checkDuyurular() {
 
   if (prev === latest.id) return
 
-  const knownIndex = data.items.findIndex((item) => item.id === prev)
-  const fresh = knownIndex === -1 ? [latest] : data.items.slice(0, knownIndex)
-
-  for (const item of fresh.reverse()) {
-    const options = {
-      body: item.summary,
-      icon: `${base}icons/icon-192.png`,
-      badge: `${base}icons/icon-192.png`,
-      tag: `duyuru-${item.id}`,
-      silent: false,
-      data: { url: `${base}?tab=duyurular&r=${Date.now()}` },
-      renotify: true,
-      vibrate: [200, 80, 200, 80, 400],
-    } as NotificationOptions
-    await self.registration.showNotification(item.title, options)
-  }
+  // Sadece en yeniyi bildir — biriken eski duyuruları spam etme
+  const options = {
+    body: latest.summary,
+    icon: `${base}icons/icon-192.png`,
+    badge: `${base}icons/icon-192.png`,
+    tag: `duyuru-${latest.id}`,
+    silent: false,
+    data: { url: `${base}?tab=duyurular&r=${Date.now()}` },
+    renotify: true,
+    vibrate: [200, 80, 200, 80, 400],
+  } as NotificationOptions
+  await self.registration.showNotification(latest.title, options)
 
   await notifyClientsPlaySound()
   await setLastId(latest.id)

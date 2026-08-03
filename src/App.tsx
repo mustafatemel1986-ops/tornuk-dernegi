@@ -15,7 +15,6 @@ import {
   markAskNotifyPermission,
   NOTIFY_PREF_EVENT,
   registerPeriodicDuyuruCheck,
-  setLastSeenDuyuruId,
   shouldAskNotifyPermission,
   showDuyuruNotification,
   syncServiceWorkerLastDuyuruId,
@@ -98,24 +97,16 @@ function MemberApp() {
             event?: string
             title?: string
             message?: string
-            id?: string
           }
           if (data.event && data.event !== 'message') return
 
           void (async () => {
-            // Önce canlı listeyi çek — bildirim ile liste aynı id’yi göstersin
+            // Gecikmiş eski ntfy’yi yok say: sadece listede gerçekten YENİ olan en üst duyuru
             const result = await checkDuyurularInPage({ notify: false })
-            const item = result.item || {
-              id: data.id || `ntfy-${Date.now()}`,
-              title: data.title || 'Törnük Derneği',
-              summary: data.message || 'Yeni duyuru',
-            }
-            if (result.latestId) {
-              setLastSeenDuyuruId(result.latestId)
-              await syncServiceWorkerLastDuyuruId(result.latestId)
-            }
+            if (!result.isNew || !result.item || !result.latestId) return
+            await syncServiceWorkerLastDuyuruId(result.latestId)
             setDuyuruBadge(true)
-            await showDuyuruNotification(item)
+            await showDuyuruNotification(result.item)
           })()
         } catch {
           // keepalive / parse
