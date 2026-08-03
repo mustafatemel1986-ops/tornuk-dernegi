@@ -1,6 +1,13 @@
 {
-  "updatedAt": "2026-08-03T11:46:38.229Z",
+  "updatedAt": "2026-08-03T11:50:54.933Z",
   "items": [
+    {
+      "id": "duyuru-2026-08-03-msd64bf9-neden-geldi",
+      "title": "Neden geldi",
+      "summary": "neden",
+      "body": "geldi neden gelsi",
+      "date": "2026-08-03"
+    },
     {
       "id": "duyuru-2026-08-03-msd5ytcl-kadeh-elinde",
       "title": "Kadeh elinde",
