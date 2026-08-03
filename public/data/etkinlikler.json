@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-03T14:10:18.531Z",
+  "updatedAt": "2026-08-03T14:10:23.797Z",
   "items": [
     {
       "id": "etk-2026-08-03-msd8j8py-bildirim-etkinlik",
@@ -20,14 +20,6 @@
     {
       "id": "etk-2026-08-03-msd7bqdj-kalmıyor-etkinlik",
       "title": "kalmıyor etkinlik",
-      "date": "2026-08-03",
-      "time": "14:00",
-      "place": "Dernek Lokali",
-      "description": ""
-    },
-    {
-      "id": "etk-2026-08-03-msd658ex-anlık-denem",
-      "title": "Anlık denem",
       "date": "2026-08-03",
       "time": "14:00",
       "place": "Dernek Lokali",
