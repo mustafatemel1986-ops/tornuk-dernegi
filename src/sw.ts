@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-/** tornuk-sw-v2026-08-03f — web push (closed app) */
+/** tornuk-sw-v2026-08-03g — closed-app web push harden */
 import {
   cleanupOutdatedCaches,
   createHandlerBoundToURL,
@@ -206,38 +206,46 @@ self.addEventListener('push', (event) => {
       let tag = `push-${Date.now()}`
 
       try {
-        const data = event.data ? ((await event.data.json()) as {
-          title?: string
-          body?: string
-          url?: string
-          kind?: string
-          id?: string
-        }) : null
-        if (data?.title) title = data.title
-        if (data?.body) body = data.body
-        if (data?.url) url = data.url
-        if (data?.id) tag = `${data.kind || 'push'}-${data.id}`
-      } catch {
-        try {
-          const text = event.data?.text()
-          if (text) body = text
-        } catch {
-          // boş payload
+        if (event.data) {
+          const raw = await event.data.text()
+          try {
+            const data = JSON.parse(raw) as {
+              title?: string
+              body?: string
+              url?: string
+              kind?: string
+              id?: string
+            }
+            if (data?.title) title = data.title
+            if (data?.body) body = data.body
+            if (data?.url) url = data.url
+            if (data?.id) tag = `${data.kind || 'push'}-${data.id}`
+          } catch {
+            if (raw) body = raw.slice(0, 180)
+          }
         }
+      } catch {
+        // boş payload — varsayılan metinle göster
       }
 
+      // Kapalı uygulamada mutlaka görünür bildirim
       await self.registration.showNotification(title, {
         body,
         icon: `${base}icons/icon-192.png`,
         badge: `${base}icons/icon-192.png`,
         tag,
         renotify: true,
+        requireInteraction: false,
         silent: false,
         vibrate: [200, 80, 200, 80, 400],
         data: { url },
       } as NotificationOptions)
 
-      await notifyClientsPlaySound()
+      try {
+        await notifyClientsPlaySound()
+      } catch {
+        // ses opsiyonel
+      }
     })(),
   )
 })

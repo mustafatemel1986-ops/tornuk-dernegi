@@ -603,14 +603,34 @@ export default {
 async function runPushPoll(env) {
   if (!env.GITHUB_TOKEN || !env.VAPID_PRIVATE_JWK) return
 
-  const [duyuruText, etkinlikText, subsStore, state] = await Promise.all([
+  const [duyuruText, etkinlikText, subsStore, state, outbox] = await Promise.all([
     readLiveFileFromGithub(env.GITHUB_TOKEN, 'duyurular.json').catch(() => null),
     readLiveFileFromGithub(env.GITHUB_TOKEN, 'etkinlikler.json').catch(() => null),
     readPushSubs(env.GITHUB_TOKEN),
     readPushState(env.GITHUB_TOKEN),
+    readPushOutbox(env.GITHUB_TOKEN).catch(() => ({ items: [] })),
   ])
 
   if (!subsStore.subscriptions.length) return
+
+  // 1) Admin’in yazdığı outbox — anlık kapalı-uygulama bildirimi
+  if (outbox.items?.length) {
+    const remaining = []
+    for (const item of outbox.items) {
+      const result = await broadcastWebPush(env, subsStore.subscriptions, {
+        title: item.title,
+        body: item.body || item.title,
+        kind: item.kind === 'etkinlik' ? 'etkinlik' : 'duyuru',
+        id: item.id,
+        url: item.url,
+      })
+      if (!result.okCount) remaining.push(item)
+    }
+    await writePushOutbox(env.GITHUB_TOKEN, {
+      updatedAt: new Date().toISOString(),
+      items: remaining,
+    })
+  }
 
   let nextState = { ...state }
   let changed = false
@@ -620,17 +640,38 @@ async function runPushPoll(env) {
     const latest = data.items?.[0]
     if (latest?.id) {
       if (!state.lastDuyuruId) {
+        // İlk kurulum: spam yok; son 10 dk içinde eklenmişse yine de gönder
+        const age = Date.now() - (Date.parse(data.updatedAt || '') || 0)
+        if (age >= 0 && age < 10 * 60 * 1000) {
+          await broadcastWebPush(env, subsStore.subscriptions, {
+            title: latest.title,
+            body: latest.summary || latest.title,
+            kind: 'duyuru',
+            id: latest.id,
+            url: `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=duyurular&r=${Date.now()}&duyuru=${encodeURIComponent(latest.id)}`,
+          })
+        }
         nextState.lastDuyuruId = latest.id
         changed = true
       } else if (state.lastDuyuruId !== latest.id) {
-        await broadcastWebPush(env, subsStore.subscriptions, {
+        const sent = await broadcastWebPush(env, subsStore.subscriptions, {
           title: latest.title,
           body: latest.summary || latest.title,
           kind: 'duyuru',
           id: latest.id,
           url: `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=duyurular&r=${Date.now()}&duyuru=${encodeURIComponent(latest.id)}`,
         })
-        nextState.lastDuyuruId = latest.id
+        // Başarısızsa state ilerletme — sonraki cron tekrar dener
+        if (sent.okCount > 0 || sent.attempted === 0) {
+          nextState.lastDuyuruId = latest.id
+          changed = true
+        }
+        nextState.lastDuyuruPush = {
+          id: latest.id,
+          ok: sent.okCount,
+          fail: sent.failCount,
+          at: new Date().toISOString(),
+        }
         changed = true
       }
     }
@@ -641,6 +682,20 @@ async function runPushPoll(env) {
     const latest = data.items?.[0]
     if (latest?.id) {
       if (!state.lastEtkinlikId) {
+        const age = Date.now() - (Date.parse(data.updatedAt || '') || 0)
+        if (age >= 0 && age < 10 * 60 * 1000) {
+          const body =
+            latest.description ||
+            [latest.date, latest.time, latest.place].filter(Boolean).join(' · ') ||
+            latest.title
+          await broadcastWebPush(env, subsStore.subscriptions, {
+            title: latest.title,
+            body,
+            kind: 'etkinlik',
+            id: latest.id,
+            url: `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=etkinlikler&r=${Date.now()}&etkinlik=${encodeURIComponent(latest.id)}`,
+          })
+        }
         nextState.lastEtkinlikId = latest.id
         changed = true
       } else if (state.lastEtkinlikId !== latest.id) {
@@ -648,14 +703,23 @@ async function runPushPoll(env) {
           latest.description ||
           [latest.date, latest.time, latest.place].filter(Boolean).join(' · ') ||
           latest.title
-        await broadcastWebPush(env, subsStore.subscriptions, {
+        const sent = await broadcastWebPush(env, subsStore.subscriptions, {
           title: latest.title,
           body,
           kind: 'etkinlik',
           id: latest.id,
           url: `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=etkinlikler&r=${Date.now()}&etkinlik=${encodeURIComponent(latest.id)}`,
         })
-        nextState.lastEtkinlikId = latest.id
+        if (sent.okCount > 0 || sent.attempted === 0) {
+          nextState.lastEtkinlikId = latest.id
+          changed = true
+        }
+        nextState.lastEtkinlikPush = {
+          id: latest.id,
+          ok: sent.okCount,
+          fail: sent.failCount,
+          at: new Date().toISOString(),
+        }
         changed = true
       }
     }
@@ -669,15 +733,21 @@ async function runPushPoll(env) {
 
 async function broadcastWebPush(env, subscriptions, payload) {
   const dead = []
+  let okCount = 0
+  let failCount = 0
   for (const sub of subscriptions) {
     try {
       const result = await sendOneWebPush(env, sub, payload)
-      // 404/410: abonelik silinmiş; 403: VAPID anahtarı uyuşmuyor (yeniden abone olmalı)
-      if (result.status === 404 || result.status === 410 || result.status === 403) {
+      if (result.ok || result.status === 201) {
+        okCount++
+      } else if (result.status === 404 || result.status === 410 || result.status === 403) {
         dead.push(sub.endpoint)
+        failCount++
+      } else {
+        failCount++
       }
     } catch {
-      // tek abonelik hatası tümünü durdurmasın
+      failCount++
     }
   }
   if (dead.length) {
@@ -687,6 +757,29 @@ async function broadcastWebPush(env, subscriptions, payload) {
     }
     await writePushSubs(env.GITHUB_TOKEN, next)
   }
+  return { okCount, failCount, attempted: subscriptions.length }
+}
+
+async function readPushOutbox(token) {
+  try {
+    const text = await readLiveFileFromGithub(token, 'push-outbox.json')
+    const data = JSON.parse(text)
+    return { updatedAt: data.updatedAt, items: Array.isArray(data.items) ? data.items : [] }
+  } catch {
+    return { updatedAt: new Date().toISOString(), items: [] }
+  }
+}
+
+async function writePushOutbox(token, data) {
+  const content = `${JSON.stringify(data, null, 2)}\n`
+  const message = `admin: push outbox flushed (${new Date().toISOString().slice(0, 16).replace('T', ' ')})`
+  await commitFilesWithRetry(token, LIVE_BRANCH, [{ path: 'data/push-outbox.json', content }], message)
+  await commitFilesWithRetry(
+    token,
+    MAIN_BRANCH,
+    [{ path: 'public/data/push-outbox.json', content }],
+    message,
+  )
 }
 
 async function readPushState(token) {

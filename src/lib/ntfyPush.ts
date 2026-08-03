@@ -1,4 +1,4 @@
-/** Anlık bildirim kanalı (üyeler EventSource / ntfy ile alır). */
+import { enqueueClosedAppPush } from './pushOutbox'
 import { getAdminSessionPin } from './adminAuth'
 import { PUBLISH_API_URL } from './publishConfig'
 
@@ -81,17 +81,26 @@ async function postNtfyViaWorker(payload: {
   if (!res.ok || !body.ok) throw new Error(body.error || `notify ${res.status}`)
 }
 
-/** Duyuru veya etkinlik için anlık bildirim (doğrudan ntfy → Worker yedek). */
+/** Duyuru veya etkinlik için anlık bildirim (ntfy + kapalı uygulama kuyruğu). */
 export async function publishNotifyToNtfy(item: {
   kind: NotifyKind
   id?: string
   title: string
   summary: string
 }): Promise<void> {
+  // Kapalı uygulama: GitHub outbox → Worker cron → Web Push (iş ağında Worker engelli olsa da)
+  try {
+    await enqueueClosedAppPush(item)
+  } catch {
+    // bridge yoksa sessiz; cron duyuru listesinden de dener
+  }
+
   let lastError: unknown
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       await postNtfyDirect(item)
+      // Worker açıksa Web Push’i de hemen tetikle
+      void postNtfyViaWorker(item).catch(() => undefined)
       return
     } catch (error) {
       lastError = error
