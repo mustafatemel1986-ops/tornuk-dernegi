@@ -1,4 +1,13 @@
 {
-  "updatedAt": "2026-08-03T14:12:47.400Z",
-  "items": []
+  "updatedAt": "2026-08-03T15:43:23.322Z",
+  "items": [
+    {
+      "id": "etk-2026-08-03-msdefa2i-yönetim-toplantıdı",
+      "title": "Yönetim Toplantıdı",
+      "date": "2026-08-03",
+      "time": "14:00",
+      "place": "Dernek Lokali",
+      "description": "Üyeletimiz istaşare"
+    }
+  ]
 }
