@@ -1,4 +1,29 @@
 {
-  "updatedAt": "2026-08-03T08:12:38.795Z",
-  "items": []
+  "updatedAt": "2026-07-31",
+  "items": [
+    {
+      "id": "etk-2026-08-genel-kurul",
+      "title": "Olağan Genel Kurul",
+      "date": "2026-08-15",
+      "time": "14:00",
+      "place": "Dernek Lokali",
+      "description": "Faaliyet ve mali raporların okunması, yeni dönem yönetim seçimi."
+    },
+    {
+      "id": "etk-2026-08-iftar",
+      "title": "Üye buluşması / çay saati",
+      "date": "2026-08-22",
+      "time": "16:30",
+      "place": "Dernek Lokali",
+      "description": "Üyeler arası sohbet ve istişare toplantısı. Aileler de katılabilir."
+    },
+    {
+      "id": "etk-2026-09-picnic",
+      "title": "Geleneksel dernek pikniği",
+      "date": "2026-09-13",
+      "time": "10:00",
+      "place": "Belirlenecek mesire alanı",
+      "description": "Yıllık geleneksel piknik. Yer bilgisi duyurular bölümünden güncellenecektir."
+    }
+  ]
 }

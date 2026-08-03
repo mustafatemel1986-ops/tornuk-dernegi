@@ -1,4 +1,40 @@
 {
-  "updatedAt": "2026-08-03T08:12:02.870Z",
-  "items": []
+  "updatedAt": "2026-08-03T08:13:13.562Z",
+  "items": [
+    {
+      "id": "duyuru-2026-08-03-mscycd7e-son",
+      "title": "Son",
+      "summary": "Son",
+      "body": "Son",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-mscy90ui-denem",
+      "title": "Denem",
+      "summary": "Denem",
+      "body": "Dene",
+      "date": "2026-08-07"
+    },
+    {
+      "id": "duyuru-2026-07-genel-kurul",
+      "title": "Olağan Genel Kurul Duyurusu",
+      "date": "2026-07-28",
+      "summary": "2026 yılı olağan genel kurul toplantımız 15 Ağustos Cumartesi günü saat 14:00'te dernek lokalinde yapılacaktır.",
+      "body": "Değerli üyelerimiz,\n\n2026 yılı olağan genel kurul toplantımız 15 Ağustos 2026 Cumartesi günü saat 14:00'te dernek lokalinde gerçekleştirilecektir.\n\nGündem: faaliyet raporu, mali rapor, yönetim seçimi.\n\nKatılımınızı rica ederiz."
+    },
+    {
+      "id": "duyuru-2026-07-aidat",
+      "title": "Aidat hatırlatması",
+      "date": "2026-07-10",
+      "summary": "Temmuz ayı aidat ödemeleri için son gün 31 Temmuz'dur.",
+      "body": "Sayın üyelerimiz, temmuz ayı aidat ödemelerinizi uygulama üzerinden borç durumunuzu kontrol ederek gerçekleştirebilirsiniz. Ödeme için IBAN bilgisine Bağış / Ödeme bölümünden ulaşabilirsiniz."
+    },
+    {
+      "id": "duyuru-2026-06-temizlik",
+      "title": "Köy temizliği etkinliği teşekkürü",
+      "date": "2026-06-20",
+      "summary": "Geçtiğimiz hafta sonu düzenlenen çevre temizliği etkinliğine katılan tüm üyelerimize teşekkür ederiz.",
+      "body": "Köy meydanı ve çevresinde gerçekleştirdiğimiz temizlik çalışmasına emek veren tüm üyelerimize teşekkür ederiz. Bir sonraki etkinlik takvimi yakında paylaşılacaktır."
+    }
+  ]
 }
