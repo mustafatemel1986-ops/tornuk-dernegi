@@ -1,13 +1,16 @@
 import type { AnnouncementsData, EventsData, MembershipData } from '../types'
+import { PUBLISH_API_URL } from './publishConfig'
 
 const MEMBERS_KEY = 'tornuk-live-members'
 const DUYURU_KEY = 'tornuk-live-duyurular'
 const ETKINLIK_KEY = 'tornuk-live-etkinlikler'
 export const DATA_UPDATED_EVENT = 'tornuk-data-updated'
 
-/** Anında güncellenen kaynak (Pages CDN gecikmesiz). */
 export const LIVE_DATA_BASE =
   'https://raw.githubusercontent.com/mustafatemel1986-ops/tornuk-dernegi/gh-pages/data'
+
+const GITHUB_CONTENTS =
+  'https://api.github.com/repos/mustafatemel1986-ops/tornuk-dernegi/contents/data'
 
 function read<T>(key: string): T | null {
   try {
@@ -23,7 +26,6 @@ function write(key: string, data: unknown) {
   window.dispatchEvent(new Event(DATA_UPDATED_EVENT))
 }
 
-/** Yalnızca admin paneli taslağı — üye ekranları bunu okumaz. */
 export function getLiveMembers(): MembershipData | null {
   return read<MembershipData>(MEMBERS_KEY)
 }
@@ -69,25 +71,61 @@ async function fetchOne<T>(url: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
-/**
- * Önce GitHub raw (taze), olmazsa site data/ (Pages).
- * İkisi de başarısızsa hata.
- */
-async function fetchJson<T>(file: string): Promise<T> {
-  const bust = `t=${Date.now()}&r=${Math.random()}`
-  const rawUrl = `${LIVE_DATA_BASE}/${file}?${bust}`
-  const pagesUrl = `${import.meta.env.BASE_URL}data/${file}?${bust}`
-
-  try {
-    return await fetchOne<T>(rawUrl)
-  } catch {
-    return fetchOne<T>(pagesUrl)
-  }
+/** Public GitHub Contents API — CDN yok, tarayıcıdan okunabilir. */
+async function fetchViaGithubApi<T>(file: string): Promise<T> {
+  const res = await fetch(`${GITHUB_CONTENTS}/${file}?ref=gh-pages&t=${Date.now()}`, {
+    cache: 'no-store',
+    mode: 'cors',
+    headers: { Accept: 'application/vnd.github+json' },
+  })
+  if (!res.ok) throw new Error(`github api ${res.status}`)
+  const payload = (await res.json()) as { content?: string; encoding?: string }
+  if (!payload.content) throw new Error('github api empty')
+  const clean = payload.content.replace(/\s+/g, '')
+  const binary = atob(clean)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const text = new TextDecoder().decode(bytes)
+  return JSON.parse(text) as T
 }
 
 /**
- * Üye ekranları canlı veriyi okur (raw → Pages yedek).
+ * 1) Cloudflare Worker /live (yayın sonrası anında)
+ * 2) GitHub Contents API (CDN yok)
+ * 3) raw.githubusercontent
+ * 4) Site Pages data/
  */
+async function fetchJson<T>(file: string): Promise<T> {
+  const bust = `t=${Date.now()}&r=${Math.random()}`
+  const errors: string[] = []
+
+  try {
+    return await fetchOne<T>(`${PUBLISH_API_URL}/live/${file}?${bust}`)
+  } catch (e) {
+    errors.push(`worker:${e instanceof Error ? e.message : 'fail'}`)
+  }
+
+  try {
+    return await fetchViaGithubApi<T>(file)
+  } catch (e) {
+    errors.push(`api:${e instanceof Error ? e.message : 'fail'}`)
+  }
+
+  try {
+    return await fetchOne<T>(`${LIVE_DATA_BASE}/${file}?${bust}`)
+  } catch (e) {
+    errors.push(`raw:${e instanceof Error ? e.message : 'fail'}`)
+  }
+
+  try {
+    return await fetchOne<T>(`${import.meta.env.BASE_URL}data/${file}?${bust}`)
+  } catch (e) {
+    errors.push(`pages:${e instanceof Error ? e.message : 'fail'}`)
+  }
+
+  throw new Error(`${file} yüklenemedi (${errors.join(' | ')})`)
+}
+
 export async function loadMembershipData(): Promise<MembershipData> {
   return fetchJson<MembershipData>('uyeler.json')
 }
@@ -104,7 +142,6 @@ export function hasLiveDraft(): boolean {
   return Boolean(getLiveMembers() || getLiveAnnouncements() || getLiveEvents())
 }
 
-/** Hangisi daha yeni? Admin yüklemede bayat taslağı ayıklamak için. */
 export function pickNewerData<T extends { updatedAt?: string }>(
   live: T | null,
   server: T,

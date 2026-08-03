@@ -221,6 +221,64 @@ function assertSafeFiles(files) {
   }
 }
 
+const LIVE_FILES = new Set(['uyeler.json', 'duyurular.json', 'etkinlikler.json'])
+/** Yayın sonrası anında okuma — CDN beklemeden */
+const memoryLive = new Map()
+
+function decodeGithubContent(b64) {
+  const clean = String(b64 || '').replace(/\s+/g, '')
+  const binary = atob(clean)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
+async function readLiveFileFromGithub(token, fileName) {
+  const path = `data/${fileName}`
+  const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?ref=${LIVE_BRANCH}&t=${Date.now()}`
+  const res = await fetch(url, {
+    headers: {
+      ...githubHeaders(token),
+      'Cache-Control': 'no-cache',
+    },
+  })
+  if (!res.ok) throw new Error(`GitHub okuma ${res.status}`)
+  const data = await res.json()
+  return decodeGithubContent(data.content)
+}
+
+async function handleLiveGet(env, origin, fileName) {
+  if (!LIVE_FILES.has(fileName)) {
+    return json({ ok: false, error: 'Not found' }, 404, origin)
+  }
+
+  try {
+    let text = memoryLive.get(fileName)
+    if (!text) {
+      if (!env.GITHUB_TOKEN) throw new Error('Token yok')
+      text = await readLiveFileFromGithub(env.GITHUB_TOKEN, fileName)
+      memoryLive.set(fileName, text)
+    }
+
+    return new Response(text, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        Pragma: 'no-cache',
+        Expires: '0',
+        ...corsHeaders(origin),
+      },
+    })
+  } catch (error) {
+    return json(
+      { ok: false, error: error instanceof Error ? error.message : 'Okuma başarısız' },
+      502,
+      origin,
+    )
+  }
+}
+
 async function handlePublish(request, env, origin, ctx) {
   if (!env.GITHUB_TOKEN || !env.ADMIN_PIN_HASH) {
     return json({ ok: false, error: 'Sunucu yapılandırması eksik.' }, 500, origin)
@@ -264,9 +322,15 @@ async function handlePublish(request, env, origin, ctx) {
   }))
 
   try {
-    // İkisini de bekle — main arka planda kalırsa dallar ayrışıyor
     await commitFilesWithRetry(env.GITHUB_TOKEN, LIVE_BRANCH, liveFiles, message)
     await commitFilesWithRetry(env.GITHUB_TOKEN, MAIN_BRANCH, mainFiles, message)
+
+    // Bellekte taze tut — üye uygulaması hemen görsün
+    for (const file of liveFiles) {
+      const name = file.path.split('/').pop()
+      if (name && LIVE_FILES.has(name)) memoryLive.set(name, file.content)
+    }
+
     return json({ ok: true }, 200, origin)
   } catch (error) {
     return json(
@@ -289,6 +353,12 @@ export default {
     }
 
     const url = new URL(request.url)
+
+    if (request.method === 'GET' && url.pathname.startsWith('/live/')) {
+      const fileName = url.pathname.replace(/^\/live\//, '')
+      return handleLiveGet(env, origin, fileName)
+    }
+
     if (request.method === 'POST' && (url.pathname === '/' || url.pathname === '/publish')) {
       return handlePublish(request, env, origin, ctx)
     }

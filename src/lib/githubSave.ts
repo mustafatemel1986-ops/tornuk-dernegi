@@ -1,14 +1,8 @@
-/**
- * Admin yayın köprüsü.
- * 1) Cloudflare Worker (tercih)
- * 2) Worker engelliysa PIN ile çözülen yedek → api.github.com
- */
 import { getBridgeGithubToken } from './bridgeUnlock'
 import { pushAdminDataDirect } from './githubDirect'
+import { PUBLISH_API_URL } from './publishConfig'
 
-export const PUBLISH_API_URL =
-  (import.meta.env.VITE_PUBLISH_API_URL as string | undefined)?.replace(/\/$/, '') ||
-  'https://tornuk-publish.tornuk-dernegi.workers.dev'
+export { PUBLISH_API_URL }
 
 export type AdminDataFile = { path: string; data: unknown }
 
@@ -36,7 +30,6 @@ async function pushViaWorker(pin: string, files: AdminDataFile[]) {
   try {
     payload = JSON.parse(text) as { ok?: boolean; error?: string }
   } catch {
-    // İş ağı workers.dev’i HTML engel sayfasıyla cevaplıyor olabilir
     throw new TypeError('Failed to fetch')
   }
 
@@ -46,20 +39,34 @@ async function pushViaWorker(pin: string, files: AdminDataFile[]) {
 }
 
 async function pushUnlocked(pin: string, files: AdminDataFile[]) {
-  try {
-    await pushViaWorker(pin, files)
-    return
-  } catch (error) {
-    if (!isNetworkFetchError(error)) throw error
+  const token = getBridgeGithubToken()
+
+  // Telefonda Worker engelli olabilir — token varsa önce doğrudan GitHub
+  if (token) {
+    try {
+      await pushAdminDataDirect(token, files)
+      return
+    } catch (error) {
+      // doğrudan yazma başarısızsa Worker dene
+      try {
+        await pushViaWorker(pin, files)
+        return
+      } catch (workerError) {
+        const a = error instanceof Error ? error.message : 'GitHub yazılamadı'
+        const b = workerError instanceof Error ? workerError.message : 'Worker başarısız'
+        throw new Error(`${a} / ${b}`)
+      }
+    }
   }
 
-  const token = getBridgeGithubToken()
-  if (!token) {
+  try {
+    await pushViaWorker(pin, files)
+  } catch (error) {
+    if (!isNetworkFetchError(error)) throw error
     throw new Error(
-      'Yayın sunucusuna ulaşılamadı (ağ engeli). Mobil veri ile deneyin veya çıkış yapıp tekrar giriş yapın.',
+      'Yayın sunucusuna ulaşılamadı. Yönetimden çıkış yapıp PIN ile tekrar giriş yapın, sonra yeniden deneyin.',
     )
   }
-  await pushAdminDataDirect(token, files)
 }
 
 export async function pushAdminData(

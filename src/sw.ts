@@ -1,4 +1,5 @@
 /// <reference lib="webworker" />
+/** tornuk-sw-v2026-08-03c — force update */
 import {
   cleanupOutdatedCaches,
   createHandlerBoundToURL,
