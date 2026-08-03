@@ -11,11 +11,15 @@ import {
   askServiceWorkerToCheck,
   checkDuyurularInPage,
   checkEtkinliklerInPage,
+  getLastSeenDuyuruId,
+  getLastSeenEtkinlikId,
   getNotifyPreference,
   listenForNotifySoundFromSw,
   markAskNotifyPermission,
   NOTIFY_PREF_EVENT,
   registerPeriodicDuyuruCheck,
+  setLastSeenDuyuruId,
+  setLastSeenEtkinlikId,
   shouldAskNotifyPermission,
   showDuyuruNotification,
   showEtkinlikNotification,
@@ -88,7 +92,7 @@ function MemberApp() {
     return () => window.removeEventListener(NOTIFY_PREF_EVENT, syncPref)
   }, [])
 
-  // Uygulama açıkken tek bildirim yolu: ntfy EventSource
+  // Uygulama açıkken anlık bildirim: ntfy EventSource (CDN beklemeden)
   useEffect(() => {
     if (!notifyReady) return
     let source: EventSource | null = null
@@ -100,27 +104,56 @@ function MemberApp() {
             event?: string
             title?: string
             message?: string
-            tags?: string[]
+            tags?: string[] | string
+            click?: string
           }
           if (data.event && data.event !== 'message') return
+          if (!data.title && !data.message) return
 
-          const tags = data.tags || []
-          const isEtkinlik = tags.includes('etkinlik')
+          const tags = Array.isArray(data.tags)
+            ? data.tags
+            : String(data.tags || '')
+                .split(',')
+                .map((t) => t.trim())
+                .filter(Boolean)
+          const click = data.click || ''
+          const isEtkinlik =
+            tags.includes('etkinlik') ||
+            click.includes('tab=etkinlikler') ||
+            /[?&]etkinlik=/.test(click)
+
+          let idFromClick: string | null = null
+          try {
+            const u = new URL(click)
+            idFromClick = u.searchParams.get(isEtkinlik ? 'etkinlik' : 'duyuru')
+          } catch {
+            // click yok / geçersiz
+          }
 
           void (async () => {
             if (isEtkinlik) {
-              const result = await checkEtkinliklerInPage({ notify: false })
-              if (!result.isNew || !result.item || !result.latestId) return
-              await syncServiceWorkerLastEtkinlikId(result.latestId)
-              await showEtkinlikNotification(result.item)
+              const id = idFromClick || `etkinlik-${Date.now()}`
+              if (getLastSeenEtkinlikId() === id) return
+              setLastSeenEtkinlikId(id)
+              await syncServiceWorkerLastEtkinlikId(id)
+              await showEtkinlikNotification({
+                id,
+                title: data.title || 'Yeni etkinlik',
+                summary: data.message || data.title || '',
+              })
               return
             }
 
-            const result = await checkDuyurularInPage({ notify: false })
-            if (!result.isNew || !result.item || !result.latestId) return
-            await syncServiceWorkerLastDuyuruId(result.latestId)
+            const id = idFromClick || `duyuru-${Date.now()}`
+            if (getLastSeenDuyuruId() === id) return
+            setLastSeenDuyuruId(id)
+            await syncServiceWorkerLastDuyuruId(id)
             setDuyuruBadge(true)
-            await showDuyuruNotification(result.item)
+            await showDuyuruNotification({
+              id,
+              title: data.title || 'Yeni duyuru',
+              summary: data.message || data.title || '',
+            })
           })()
         } catch {
           // keepalive / parse
