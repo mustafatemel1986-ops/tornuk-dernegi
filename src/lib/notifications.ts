@@ -2,6 +2,7 @@ import { playNotifySound } from './notifySound'
 
 const STORAGE_KEY = 'tornuk-last-duyuru-id'
 const PREF_KEY = 'tornuk-notify-enabled'
+const ASK_KEY = 'tornuk-ask-notify'
 
 export function getNotifyPreference(): boolean {
   return localStorage.getItem(PREF_KEY) === '1'
@@ -9,6 +10,22 @@ export function getNotifyPreference(): boolean {
 
 export function setNotifyPreference(enabled: boolean) {
   localStorage.setItem(PREF_KEY, enabled ? '1' : '0')
+}
+
+/** Kurulum sonrası bildirim izni sorulacak mı? */
+export function shouldAskNotifyPermission(): boolean {
+  if (!('Notification' in window)) return false
+  if (getNotifyPreference() && Notification.permission === 'granted') return false
+  if (Notification.permission === 'denied') return false
+  return localStorage.getItem(ASK_KEY) === '1' || Notification.permission === 'default'
+}
+
+export function markAskNotifyPermission() {
+  localStorage.setItem(ASK_KEY, '1')
+}
+
+export function clearAskNotifyPermission() {
+  localStorage.removeItem(ASK_KEY)
 }
 
 export function getLastSeenDuyuruId(): string | null {
@@ -24,6 +41,28 @@ export async function ensureNotificationPermission(): Promise<NotificationPermis
   if (Notification.permission === 'granted') return 'granted'
   if (Notification.permission === 'denied') return 'denied'
   return Notification.requestPermission()
+}
+
+/** İndirme / ana ekrana ekleme sonrası: izin iste ve bildirimleri aç. */
+export async function enableNotificationsAfterInstall(): Promise<'granted' | 'denied' | 'default'> {
+  markAskNotifyPermission()
+  const permission = await ensureNotificationPermission()
+  if (permission === 'granted') {
+    setNotifyPreference(true)
+    clearAskNotifyPermission()
+    await registerPeriodicDuyuruCheck()
+    await askServiceWorkerToCheck()
+    try {
+      await showDuyuruNotification({
+        id: `welcome-${Date.now()}`,
+        title: 'Törnük Derneği',
+        summary: 'Bildirimler açıldı. Yeni duyurularda size haber vereceğiz.',
+      })
+    } catch {
+      // sessiz
+    }
+  }
+  return permission
 }
 
 export async function registerPeriodicDuyuruCheck() {
@@ -78,7 +117,7 @@ export async function showDuyuruNotification(
     renotify: true,
     silent: false,
     vibrate: [200, 80, 200, 80, 400],
-    data: { url: `${import.meta.env.BASE_URL}?tab=duyurular` },
+    data: { url: `${import.meta.env.BASE_URL}?tab=duyurular&r=${Date.now()}` },
   }
 
   try {
@@ -104,6 +143,7 @@ export async function sendTestNotification() {
   if (permission !== 'granted') {
     throw new Error('Bildirim izni yok')
   }
+  setNotifyPreference(true)
   await showDuyuruNotification({
     id: `test-${Date.now()}`,
     title: 'Törnük Derneği',

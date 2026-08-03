@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import { AdminApp } from './admin/AdminApp'
 import { BottomNav } from './components/BottomNav'
+import { NotifyPermissionGate } from './components/NotifyPermissionGate'
 import { isAdminRoute, normalizeAdminUrl } from './lib/adminRoute'
 import { isStandalone } from './lib/install'
 import { trackAppInstall } from './lib/installStats'
@@ -11,7 +12,9 @@ import {
   checkDuyurularInPage,
   getNotifyPreference,
   listenForNotifySoundFromSw,
+  markAskNotifyPermission,
   registerPeriodicDuyuruCheck,
+  shouldAskNotifyPermission,
   showDuyuruNotification,
 } from './lib/notifications'
 import { AidatPage } from './pages/AidatPage'
@@ -39,6 +42,8 @@ function getInitialTab(): TabId {
 function MemberApp() {
   const [tab, setTab] = useState<TabId>(getInitialTab)
   const [duyuruBadge, setDuyuruBadge] = useState(false)
+  const [askNotify, setAskNotify] = useState(false)
+  const [notifyReady, setNotifyReady] = useState(() => getNotifyPreference())
 
   useEffect(() => {
     // Admin hash'ini bozma
@@ -51,13 +56,27 @@ function MemberApp() {
   }, [tab])
 
   useEffect(() => {
-    // Ana ekrana ekli uygulamada indirme sayacını bir kez artır
-    if (isStandalone()) void trackAppInstall()
+    if (!isStandalone()) return
+    void trackAppInstall()
+
+    const seenKey = 'tornuk-standalone-seen'
+    const firstOpen = !localStorage.getItem(seenKey)
+    if (firstOpen) localStorage.setItem(seenKey, '1')
+
+    // İlk ana ekran açılışı veya indirme sonrası bekleyen izin
+    if (
+      (firstOpen || shouldAskNotifyPermission()) &&
+      'Notification' in window &&
+      Notification.permission === 'default'
+    ) {
+      markAskNotifyPermission()
+      window.setTimeout(() => setAskNotify(true), 600)
+    }
   }, [])
 
-  // Uygulama arka planda (ama öldürülmemişken) ntfy üzerinden anlık duyuru
+  // Uygulama bellekteyken duyuru kanalı (kullanıcı başka siteye gitmez)
   useEffect(() => {
-    if (!getNotifyPreference()) return
+    if (!notifyReady) return
     let source: EventSource | null = null
     try {
       source = new EventSource(`https://ntfy.sh/${NTFY_TOPIC}/sse`)
@@ -83,7 +102,7 @@ function MemberApp() {
       // EventSource yoksa sessiz
     }
     return () => source?.close()
-  }, [])
+  }, [notifyReady])
 
   useEffect(() => {
     let cancelled = false
@@ -139,6 +158,13 @@ function MemberApp() {
 
   return (
     <div className="shell">
+      <NotifyPermissionGate
+        open={askNotify}
+        onDone={() => {
+          setAskNotify(false)
+          setNotifyReady(getNotifyPreference())
+        }}
+      />
       <main className="app">
         {tab === 'ana' && <HomePage onNavigate={handleTabChange} />}
         {tab === 'aidat' && <AidatPage />}

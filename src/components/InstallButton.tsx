@@ -6,6 +6,7 @@ import {
   type BeforeInstallPromptEvent,
 } from '../lib/install'
 import { trackAppInstall } from '../lib/installStats'
+import { enableNotificationsAfterInstall } from '../lib/notifications'
 
 type GuideKind = 'ios' | 'android' | 'desktop' | null
 
@@ -26,12 +27,13 @@ export function InstallButton() {
       setDeferred(null)
       setGuide(null)
       await trackAppInstall()
+      // İndirme biter bitmez bildirim izni
+      await enableNotificationsAfterInstall()
     }
 
     window.addEventListener('beforeinstallprompt', onBeforeInstall)
     window.addEventListener('appinstalled', onInstalled)
 
-    // iOS / zaten ekli uygulama: ilk açılışta bir kez say
     if (isStandalone()) {
       setInstalled(true)
       void trackAppInstall()
@@ -43,7 +45,6 @@ export function InstallButton() {
     }
   }, [])
 
-  // Yüklü uygulamada indirme butonu hiç görünmesin
   if (installed) return null
 
   async function handleInstall() {
@@ -55,6 +56,7 @@ export function InstallButton() {
         if (choice.outcome === 'accepted') {
           setInstalled(true)
           await trackAppInstall()
+          await enableNotificationsAfterInstall()
         }
         setDeferred(null)
       } finally {
@@ -87,7 +89,7 @@ export function InstallButton() {
         <DownloadIcon />
         {busy ? 'Ekleniyor…' : 'Uygulamayı İndir'}
       </button>
-      <p className="install-hint">Ana ekrana ekleyin; uygulama gibi açılır.</p>
+      <p className="install-hint">Ana ekrana ekleyin; ardından bildirim izni sorulur.</p>
 
       {guide && (
         <div className="install-guide" role="dialog" aria-labelledby="install-guide-title">
@@ -105,6 +107,9 @@ export function InstallButton() {
                 <li>
                   <strong>Ekle</strong> ile onaylayın
                 </li>
+                <li>
+                  Ana ekrandan uygulamayı açın — bildirim izni otomatik sorulur
+                </li>
               </ol>
             )}
             {guide === 'android' && (
@@ -115,7 +120,7 @@ export function InstallButton() {
                 <li>
                   <strong>Ana ekrana ekle</strong> veya <strong>Uygulamayı yükle</strong> seçin
                 </li>
-                <li>Onaylayın — ikon ana ekranınıza gelir</li>
+                <li>Onaylayın — ardından bildirim izni sorulur</li>
               </ol>
             )}
             {guide === 'desktop' && (
