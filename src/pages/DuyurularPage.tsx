@@ -7,19 +7,27 @@ export function DuyurularPage() {
   const [data, setData] = useState<AnnouncementsData | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
+      setLoading(true)
       try {
+        // Eski SW önbelleğini temizle
+        const reg = await navigator.serviceWorker?.ready
+        reg?.active?.postMessage({ type: 'PURGE_DATA_CACHE' })
+
         const json = await loadAnnouncementsData()
         if (cancelled) return
         setData(json)
         setError(null)
-        if (json.items[0]) setOpenId((prev) => prev ?? json.items[0].id)
+        if (json.items[0]) setOpenId(json.items[0].id)
       } catch {
-        if (!cancelled) setError('Duyurular yüklenemedi.')
+        if (!cancelled) setError('Duyurular yüklenemedi. Yenile’ye basın.')
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
 
@@ -28,27 +36,50 @@ export function DuyurularPage() {
     function onVisible() {
       if (document.visibilityState === 'visible') void load()
     }
-    function onFocus() {
-      void load()
-    }
 
     document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('focus', onFocus)
-    const timer = window.setInterval(() => void load(), 20 * 1000)
+    window.addEventListener('focus', onVisible)
+    const timer = window.setInterval(() => void load(), 15 * 1000)
 
     return () => {
       cancelled = true
       document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('focus', onVisible)
       window.clearInterval(timer)
     }
   }, [])
+
+  async function refresh() {
+    setLoading(true)
+    setError(null)
+    try {
+      const reg = await navigator.serviceWorker?.ready
+      reg?.active?.postMessage({ type: 'PURGE_DATA_CACHE' })
+      await reg?.update()
+      const json = await loadAnnouncementsData()
+      setData(json)
+      if (json.items[0]) setOpenId(json.items[0].id)
+    } catch {
+      setError('Duyurular yüklenemedi.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <section className="page">
       <header className="page-head">
         <h1>Duyurular</h1>
         <p>Genel kurul, toplantı ve önemli haberler.</p>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          style={{ marginTop: '0.5rem' }}
+          disabled={loading}
+          onClick={() => void refresh()}
+        >
+          {loading ? 'Yenileniyor…' : 'Listeyi yenile'}
+        </button>
       </header>
 
       {error && <p className="error">{error}</p>}

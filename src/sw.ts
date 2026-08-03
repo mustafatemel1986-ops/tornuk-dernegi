@@ -9,14 +9,46 @@ import { NetworkOnly } from 'workbox-strategies'
 
 declare let self: ServiceWorkerGlobalScope
 
+// Yeni SW hemen aktif olsun — eski önbellekli SW takılı kalmasın
+void self.skipWaiting()
+
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-// Duyuru/aidat her zaman ağdan — eski önbellek bildirimi engellemesin
+// Duyuru/aidat JSON asla önbellekten okunmasın
 registerRoute(
   ({ url }) => url.pathname.includes('/data/') && url.pathname.endsWith('.json'),
-  new NetworkOnly(),
+  new NetworkOnly({
+    plugins: [
+      {
+        cacheWillUpdate: async () => null,
+      },
+    ],
+  }),
 )
+
+async function purgeDataJsonCaches() {
+  await caches.delete('live-data')
+  const names = await caches.keys()
+  for (const name of names) {
+    const cache = await caches.open(name)
+    const requests = await cache.keys()
+    await Promise.all(
+      requests
+        .filter((req) => req.url.includes('/data/') && req.url.includes('.json'))
+        .map((req) => cache.delete(req)),
+    )
+  }
+}
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      await purgeDataJsonCaches()
+      await self.clients.claim()
+    })(),
+  )
+})
 
 try {
   const handler = createHandlerBoundToURL('index.html')
@@ -75,7 +107,7 @@ async function checkDuyurular() {
       badge: `${base}icons/icon-192.png`,
       tag: `duyuru-${item.id}`,
       silent: false,
-      data: { url: `${base}?tab=duyurular` },
+      data: { url: `${base}?tab=duyurular&r=${Date.now()}` },
       renotify: true,
       vibrate: [200, 80, 200, 80, 400],
     } as NotificationOptions
@@ -90,6 +122,9 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'CHECK_DUYURULAR') {
     event.waitUntil(checkDuyurular())
   }
+  if (event.data?.type === 'PURGE_DATA_CACHE') {
+    event.waitUntil(purgeDataJsonCaches())
+  }
 })
 
 self.addEventListener('periodicsync', (event) => {
@@ -101,7 +136,8 @@ self.addEventListener('periodicsync', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const target = event.notification.data?.url || self.registration.scope
+  const target =
+    event.notification.data?.url || `${self.registration.scope}?tab=duyurular&r=${Date.now()}`
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

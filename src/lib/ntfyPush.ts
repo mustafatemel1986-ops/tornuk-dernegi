@@ -13,7 +13,7 @@ export async function publishDuyuruToNtfy(item: {
   title: string
   summary: string
 }): Promise<void> {
-  const click = `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=duyurular`
+  const click = `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=duyurular&r=${Date.now()}`
   const res = await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
     method: 'POST',
     headers: {
@@ -21,7 +21,6 @@ export async function publishDuyuruToNtfy(item: {
       Click: click,
       Priority: 'high',
       Tags: 'loudspeaker,triangular_flag_on_post',
-      Filename: 'duyuru.txt',
     },
     body: item.summary.slice(0, 500) || item.title,
   })

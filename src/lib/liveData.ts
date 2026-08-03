@@ -54,6 +54,10 @@ export function clearLiveData() {
 async function fetchJson<T>(path: string): Promise<T> {
   const res = await fetch(`${import.meta.env.BASE_URL}${path}?t=${Date.now()}`, {
     cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
   })
   if (!res.ok) throw new Error(`${path} yüklenemedi`)
   return res.json() as Promise<T>
