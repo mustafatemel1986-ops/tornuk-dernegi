@@ -89,11 +89,10 @@ export function SavePanel({
 
   return (
     <div className="admin-panel">
-      <h2>Kaydet / Yayınla</h2>
+      <h2>Ayarlar / yedek</h2>
       <p className="hint">
-        Üye ekleme ve ödeme işlemleri bu telefonda/bilgisayarda hemen aidat sorgusuna yansır. Diğer
-        üyelerin görmesi ve bildirim alması için aşağıdan <strong>GitHub’a kaydet ve yayınla</strong>{' '}
-        ile yayınlayın. Sadece duyuru yazmak yeterli değildir.
+        Günlük iş için gerekmez: duyuru ve etkinlik eklerken otomatik yayınlanır. Bu sekme token,
+        yedek indirme veya sunucudan yenileme içindir.
       </p>
       {dirty ? (
         <span className="admin-dirty">Yayın bekleyen değişiklikler var</span>

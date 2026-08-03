@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { loadGithubSettings, saveGithubSettings } from '../lib/githubSave'
 import type { Announcement, AnnouncementsData } from '../types'
 
@@ -23,7 +23,7 @@ export function DuyurularAdmin({
 }: {
   data: AnnouncementsData
   onChange: (next: AnnouncementsData) => void
-  onPublish?: (next: AnnouncementsData) => Promise<void>
+  onPublish: (next: AnnouncementsData) => Promise<void>
 }) {
   const [draft, setDraft] = useState({
     title: '',
@@ -36,27 +36,43 @@ export function DuyurularAdmin({
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const editTimer = useRef<number | null>(null)
 
   const hasToken = useMemo(() => setupDone && Boolean(loadGithubSettings().token), [setupDone, busy])
 
-  function updateItem(id: string, patch: Partial<Announcement>) {
-    onChange({
-      ...data,
-      updatedAt: new Date().toISOString(),
-      items: data.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-    })
-  }
+  const publish = useCallback(
+    async (next: AnnouncementsData, successText: string): Promise<boolean> => {
+      if (!loadGithubSettings().token) {
+        setSetupDone(false)
+        setErr('Önce Access Token’ı bir kez kaydedin (aşağıdaki kutu).')
+        return false
+      }
 
-  function buildItem(): Announcement | null {
-    if (!draft.title.trim() || !draft.summary.trim()) return null
-    return {
-      id: makeId(draft.title),
-      title: draft.title.trim(),
-      summary: draft.summary.trim(),
-      body: draft.body.trim() || draft.summary.trim(),
-      date: draft.date || todayIso(),
-    }
-  }
+      setBusy(true)
+      setMsg(null)
+      setErr(null)
+      try {
+        onChange(next)
+        await onPublish(next)
+        setMsg(successText)
+        return true
+      } catch (error) {
+        const text = error instanceof Error ? error.message : 'Yayın başarısız.'
+        setErr(text)
+        if (
+          text.toLowerCase().includes('token') ||
+          text.includes('401') ||
+          text.includes('Bad credentials')
+        ) {
+          setSetupDone(false)
+        }
+        return false
+      } finally {
+        setBusy(false)
+      }
+    },
+    [onChange, onPublish],
+  )
 
   function saveTokenOnce() {
     const token = tokenInput.trim()
@@ -64,78 +80,70 @@ export function DuyurularAdmin({
       setErr('Geçerli bir GitHub token yapıştırın (genelde ghp_ ile başlar).')
       return
     }
-    const settings = loadGithubSettings()
-    saveGithubSettings({ ...settings, token })
+    saveGithubSettings({ ...loadGithubSettings(), token })
     setSetupDone(true)
     setErr(null)
-    setMsg('Kurulum tamam. Bundan sonra sadece duyuru yazıp Yayınla’ya basmanız yeterli.')
+    setMsg('Token kaydedildi. Artık “Duyuru ekle” canlıya hemen yayınlar.')
   }
 
-  async function publish(next: AnnouncementsData, successText: string): Promise<boolean> {
-    if (!onPublish) return false
-    if (!loadGithubSettings().token) {
-      setSetupDone(false)
-      setErr('Önce aşağıdaki kutuya Access Token’ı bir kez yapıştırın.')
-      return false
-    }
-
-    setBusy(true)
-    setMsg(null)
-    setErr(null)
-    try {
-      onChange(next)
-      await onPublish(next)
-      setMsg(successText)
-      return true
-    } catch (error) {
-      const text = error instanceof Error ? error.message : 'Yayın başarısız.'
-      setErr(text)
-      if (text.toLowerCase().includes('token') || text.includes('401') || text.includes('Bad credentials')) {
-        setSetupDone(false)
-      }
-      return false
-    } finally {
-      setBusy(false)
-    }
+  function schedulePublish(next: AnnouncementsData) {
+    onChange(next)
+    if (editTimer.current) window.clearTimeout(editTimer.current)
+    editTimer.current = window.setTimeout(() => {
+      void publish(next, 'Değişiklikler otomatik yayınlandı.')
+    }, 1200)
   }
 
-  async function addAndPublish() {
-    const item = buildItem()
-    if (!item) return
+  function updateItem(id: string, patch: Partial<Announcement>) {
+    schedulePublish({
+      ...data,
+      updatedAt: new Date().toISOString(),
+      items: data.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    })
+  }
+
+  async function addItem() {
+    if (!draft.title.trim() || !draft.summary.trim()) return
+    const item: Announcement = {
+      id: makeId(draft.title),
+      title: draft.title.trim(),
+      summary: draft.summary.trim(),
+      body: draft.body.trim() || draft.summary.trim(),
+      date: draft.date || todayIso(),
+    }
     const next: AnnouncementsData = {
       updatedAt: new Date().toISOString(),
       items: [item, ...data.items],
     }
-    const ok = await publish(
-      next,
-      'Yayınlandı. Üyelerin telefonunda Duyurular birkaç saniye içinde güncellenir.',
-    )
+    const ok = await publish(next, 'Duyuru eklendi ve canlıya yayınlandı.')
     if (ok) setDraft({ title: '', summary: '', body: '', date: todayIso() })
   }
 
-  async function publishCurrent() {
-    await publish(
-      { ...data, updatedAt: new Date().toISOString() },
-      'Mevcut duyurular yayınlandı.',
-    )
+  async function removeItem(id: string) {
+    if (!confirm('Bu duyuru silinsin mi? Canlı siteden de kalkacak.')) return
+    const next: AnnouncementsData = {
+      updatedAt: new Date().toISOString(),
+      items: data.items.filter((x) => x.id !== id),
+    }
+    await publish(next, 'Duyuru silindi ve yayınlandı.')
   }
 
-  function moveTop(id: string) {
+  async function moveTop(id: string) {
     const item = data.items.find((x) => x.id === id)
     if (!item) return
-    onChange({
+    const next: AnnouncementsData = {
       updatedAt: new Date().toISOString(),
       items: [item, ...data.items.filter((x) => x.id !== id)],
-    })
+    }
+    await publish(next, 'Sıra güncellendi ve yayınlandı.')
   }
 
   return (
     <div className="admin-panel">
       <h2>Duyurular</h2>
       <p className="hint">
-        Bilgisayar veya telefondan bu paneli açıp duyuru yazın → <strong>Yayınla</strong>. Üyeler
-        aynı uygulamada görür. Access Token yalnızca <strong>bu cihazda bir kez</strong> girilir;
-        her duyuruda tekrar istenmez.
+        <strong>Duyuru ekle</strong> = hemen canlı siteye ve üye uygulamalarına gider. Kaydet
+        menüsüne girmenize gerek yok.
       </p>
 
       {!hasToken && (
@@ -144,14 +152,13 @@ export function DuyurularAdmin({
           <ol className="hint" style={{ paddingLeft: '1.2rem' }}>
             <li>
               <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer">
-                Bu linke tıklayın
+                Token oluşturun
               </a>{' '}
-              → Generate new token (classic)
+              (classic, sadece <code>repo</code>)
             </li>
             <li>
-              Sadece <code>repo</code> işaretleyin → Generate → <code>ghp_...</code> kodunu kopyalayın
+              <code>ghp_...</code> kodunu yapıştırıp kaydedin — bir daha sormaz
             </li>
-            <li>Aşağıya yapıştırıp Kaydet’e basın — bir daha sormaz (bu tarayıcıda)</li>
           </ol>
           <label className="admin-label">
             Access Token
@@ -203,17 +210,9 @@ export function DuyurularAdmin({
           type="button"
           className="btn btn-primary"
           disabled={busy || !draft.title.trim() || !draft.summary.trim()}
-          onClick={() => void addAndPublish()}
+          onClick={() => void addItem()}
         >
-          {busy ? 'Yayınlanıyor…' : 'Yayınla'}
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={busy}
-          onClick={() => void publishCurrent()}
-        >
-          Listedeki değişiklikleri yayınla
+          {busy ? 'Yayınlanıyor…' : 'Duyuru ekle'}
         </button>
         {msg && <p className="admin-msg ok">{msg}</p>}
         {err && <p className="admin-msg err">{err}</p>}
@@ -262,21 +261,20 @@ export function DuyurularAdmin({
             </div>
             <div className="admin-actions">
               {index > 0 && (
-                <button type="button" className="btn btn-ghost" onClick={() => moveTop(item.id)}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy}
+                  onClick={() => void moveTop(item.id)}
+                >
                   En üste al
                 </button>
               )}
               <button
                 type="button"
                 className="btn btn-ghost"
-                onClick={() => {
-                  if (confirm('Bu duyuru silinsin mi?')) {
-                    onChange({
-                      updatedAt: new Date().toISOString(),
-                      items: data.items.filter((x) => x.id !== item.id),
-                    })
-                  }
-                }}
+                disabled={busy}
+                onClick={() => void removeItem(item.id)}
               >
                 Sil
               </button>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { isAdminLoggedIn, setAdminLoggedIn } from '../lib/adminAuth'
 import { loadGithubSettings, pushAdminData, saveGithubSettings } from '../lib/githubSave'
 import {
@@ -20,7 +20,7 @@ import { EtkinliklerAdmin } from './EtkinliklerAdmin'
 import { SavePanel } from './SavePanel'
 import { InstallStats } from './InstallStats'
 
-type AdminTab = 'aidat' | 'duyurular' | 'etkinlikler' | 'indirenler' | 'kaydet'
+type AdminTab = 'aidat' | 'duyurular' | 'etkinlikler' | 'indirenler' | 'ayarlar'
 
 export function AdminApp() {
   const [authed, setAuthed] = useState(() => isAdminLoggedIn())
@@ -31,8 +31,14 @@ export function AdminApp() {
   const [dirty, setDirty] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [draftNote, setDraftNote] = useState<string | null>(null)
+  const [publishNote, setPublishNote] = useState<string | null>(null)
 
   const [reloadToken, setReloadToken] = useState(0)
+  const dataRef = useRef({ members, announcements, events })
+  const aidatTimer = useRef<number | null>(null)
+  const publishChain = useRef(Promise.resolve())
+
+  dataRef.current = { members, announcements, events }
 
   useEffect(() => {
     if (!authed) return
@@ -69,7 +75,7 @@ export function AdminApp() {
         setDirty(usingDraft)
         if (usingDraft) {
           setDraftNote(
-            'Bu tarayıcıda yayınlanmamış taslak var. Üyelerin görmesi için Duyurular → “Ekle ve yayınla” veya Kaydet ile yayınlayın. Taslağı silmek için “Sunucudan yükle”.',
+            'Yayınlanmamış yerel taslak vardı. Aidat/duyuru/etkinlik ekleyince otomatik yayınlanır; veya Ayarlar → sunucudan yükle.',
           )
         }
       } catch {
@@ -82,6 +88,72 @@ export function AdminApp() {
       cancelled = true
     }
   }, [authed, reloadToken])
+
+  const publishLive = useCallback(
+    async (patch?: {
+      members?: MembershipData
+      announcements?: AnnouncementsData
+      events?: EventsData
+    }) => {
+      const settings = loadGithubSettings()
+      if (!settings.token) {
+        throw new Error(
+          'Access Token yok. Duyurular sekmesindeki “İlk kurulum”dan bir kez token kaydedin.',
+        )
+      }
+      saveGithubSettings(settings)
+
+      const nextMembers = patch?.members ?? dataRef.current.members
+      const nextAnnouncements = patch?.announcements ?? dataRef.current.announcements
+      const nextEvents = patch?.events ?? dataRef.current.events
+      if (!nextMembers || !nextAnnouncements || !nextEvents) {
+        throw new Error('Veriler henüz yüklenmedi.')
+      }
+
+      const run = async () => {
+        await pushAdminData(settings, [
+          { path: 'public/data/uyeler.json', data: nextMembers },
+          { path: 'public/data/duyurular.json', data: nextAnnouncements },
+          { path: 'public/data/etkinlikler.json', data: nextEvents },
+        ])
+        setMembers(nextMembers)
+        setAnnouncements(nextAnnouncements)
+        setEvents(nextEvents)
+        setLiveMembers(nextMembers)
+        setLiveAnnouncements(nextAnnouncements)
+        setLiveEvents(nextEvents)
+        dataRef.current = {
+          members: nextMembers,
+          announcements: nextAnnouncements,
+          events: nextEvents,
+        }
+        setDirty(false)
+        setDraftNote(null)
+        setPublishNote('Canlıya yayınlandı.')
+      }
+
+      publishChain.current = publishChain.current
+        .catch(() => undefined)
+        .then(() => run())
+      await publishChain.current
+    },
+    [],
+  )
+
+  function scheduleAidatPublish(next: MembershipData) {
+    setMembers(next)
+    setLiveMembers(next)
+    setDirty(true)
+    dataRef.current = { ...dataRef.current, members: next }
+    if (aidatTimer.current) window.clearTimeout(aidatTimer.current)
+    aidatTimer.current = window.setTimeout(() => {
+      void publishLive({ members: next })
+        .then(() => setPublishNote('Aidat değişiklikleri otomatik yayınlandı.'))
+        .catch((error) =>
+          setDraftNote(error instanceof Error ? error.message : 'Aidat yayını başarısız.'),
+        )
+    }, 1500)
+  }
 
   if (!authed) {
     return (
@@ -113,12 +185,12 @@ export function AdminApp() {
         <div>
           <h1>Yönetim paneli</h1>
           <p className="hint">
-            Telefon veya bilgisayardan bu panele girip duyuru/aidat yönetin. Token’ı her cihazda bir
-            kez girersiniz; sonra sadece <strong>Yayınla</strong> yeter.
+            Duyuru / etkinlik / aidat ekleyince <strong>otomatik canlıya yayınlanır</strong>. Kaydet
+            menüsüne girmenize gerek yok.
           </p>
         </div>
         <div className="admin-actions">
-          {dirty && <span className="admin-dirty">Yayın bekliyor</span>}
+          {dirty && <span className="admin-dirty">Yayınlanıyor…</span>}
           <a
             className="btn btn-ghost"
             href={import.meta.env.BASE_URL}
@@ -144,6 +216,7 @@ export function AdminApp() {
       </div>
 
       {draftNote && <p className="admin-msg err">{draftNote}</p>}
+      {publishNote && <p className="admin-msg ok">{publishNote}</p>}
 
       <div className="admin-tabs">
         {(
@@ -152,7 +225,7 @@ export function AdminApp() {
             ['duyurular', 'Duyurular'],
             ['etkinlikler', 'Etkinlikler'],
             ['indirenler', 'İndirenler'],
-            ['kaydet', 'Kaydet'],
+            ['ayarlar', 'Ayarlar'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -167,14 +240,7 @@ export function AdminApp() {
       </div>
 
       {tab === 'aidat' && (
-        <AidatAdmin
-          data={members}
-          onChange={(next) => {
-            setMembers(next)
-            setLiveMembers(next)
-            setDirty(true)
-          }}
-        />
+        <AidatAdmin data={members} onChange={(next) => scheduleAidatPublish(next)} />
       )}
       {tab === 'duyurular' && (
         <DuyurularAdmin
@@ -182,27 +248,11 @@ export function AdminApp() {
           onChange={(next) => {
             setAnnouncements(next)
             setLiveAnnouncements(next)
+            dataRef.current = { ...dataRef.current, announcements: next }
             setDirty(true)
           }}
           onPublish={async (next) => {
-            const settings = loadGithubSettings()
-            if (!settings.token) {
-              throw new Error(
-                'Access Token yok. Önce Kaydet sekmesine gidin, token yapıştırıp bir kez kaydedin.',
-              )
-            }
-            saveGithubSettings(settings)
-            await pushAdminData(settings, [
-              { path: 'public/data/uyeler.json', data: members },
-              { path: 'public/data/duyurular.json', data: next },
-              { path: 'public/data/etkinlikler.json', data: events },
-            ])
-            setAnnouncements(next)
-            setLiveAnnouncements(next)
-            setLiveMembers(members)
-            setLiveEvents(events)
-            setDirty(false)
-            setDraftNote(null)
+            await publishLive({ announcements: next })
           }}
         />
       )}
@@ -212,12 +262,16 @@ export function AdminApp() {
           onChange={(next) => {
             setEvents(next)
             setLiveEvents(next)
+            dataRef.current = { ...dataRef.current, events: next }
             setDirty(true)
+          }}
+          onPublish={async (next) => {
+            await publishLive({ events: next })
           }}
         />
       )}
       {tab === 'indirenler' && <InstallStats />}
-      {tab === 'kaydet' && (
+      {tab === 'ayarlar' && (
         <SavePanel
           members={members}
           announcements={announcements}
@@ -226,6 +280,7 @@ export function AdminApp() {
           onSaved={() => {
             setDirty(false)
             setDraftNote(null)
+            setPublishNote('Manuel yayın tamam.')
           }}
           onReloadFromServer={() => {
             clearLiveData()

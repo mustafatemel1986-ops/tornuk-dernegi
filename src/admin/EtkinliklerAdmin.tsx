@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { loadGithubSettings } from '../lib/githubSave'
 import type { EventItem, EventsData } from '../types'
 
 function todayIso() {
@@ -12,15 +13,17 @@ function makeId(title: string) {
     .trim()
     .replace(/\s+/g, '-')
     .slice(0, 40)
-  return `etk-${todayIso()}-${slug || 'yeni'}`
+  return `etk-${todayIso()}-${Date.now().toString(36)}-${slug || 'yeni'}`
 }
 
 export function EtkinliklerAdmin({
   data,
   onChange,
+  onPublish,
 }: {
   data: EventsData
   onChange: (next: EventsData) => void
+  onPublish: (next: EventsData) => Promise<void>
 }) {
   const [draft, setDraft] = useState({
     title: '',
@@ -29,16 +32,52 @@ export function EtkinliklerAdmin({
     place: 'Dernek Lokali',
     description: '',
   })
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const editTimer = useRef<number | null>(null)
+
+  const publish = useCallback(
+    async (next: EventsData, successText: string) => {
+      if (!loadGithubSettings().token) {
+        setErr('Access Token yok. Duyurular sekmesinden bir kez kaydedin.')
+        return false
+      }
+      setBusy(true)
+      setMsg(null)
+      setErr(null)
+      try {
+        onChange(next)
+        await onPublish(next)
+        setMsg(successText)
+        return true
+      } catch (error) {
+        setErr(error instanceof Error ? error.message : 'Yayın başarısız.')
+        return false
+      } finally {
+        setBusy(false)
+      }
+    },
+    [onChange, onPublish],
+  )
+
+  function schedulePublish(next: EventsData) {
+    onChange(next)
+    if (editTimer.current) window.clearTimeout(editTimer.current)
+    editTimer.current = window.setTimeout(() => {
+      void publish(next, 'Etkinlik değişiklikleri otomatik yayınlandı.')
+    }, 1200)
+  }
 
   function updateItem(id: string, patch: Partial<EventItem>) {
-    onChange({
+    schedulePublish({
       ...data,
-      updatedAt: todayIso(),
+      updatedAt: new Date().toISOString(),
       items: data.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     })
   }
 
-  function addItem() {
+  async function addItem() {
     if (!draft.title.trim() || !draft.date) return
     const item: EventItem = {
       id: makeId(draft.title),
@@ -48,17 +87,20 @@ export function EtkinliklerAdmin({
       place: draft.place.trim() || 'Belirlenecek',
       description: draft.description.trim(),
     }
-    onChange({
-      updatedAt: todayIso(),
+    const next: EventsData = {
+      updatedAt: new Date().toISOString(),
       items: [...data.items, item],
-    })
-    setDraft({
-      title: '',
-      date: todayIso(),
-      time: '14:00',
-      place: 'Dernek Lokali',
-      description: '',
-    })
+    }
+    const ok = await publish(next, 'Etkinlik eklendi ve canlıya yayınlandı.')
+    if (ok) {
+      setDraft({
+        title: '',
+        date: todayIso(),
+        time: '14:00',
+        place: 'Dernek Lokali',
+        description: '',
+      })
+    }
   }
 
   const sorted = data.items.slice().sort((a, b) => a.date.localeCompare(b.date))
@@ -66,7 +108,9 @@ export function EtkinliklerAdmin({
   return (
     <div className="admin-panel">
       <h2>Etkinlikler</h2>
-      <p className="hint">Yaklaşan etkinlikleri ekleyin veya mevcutları güncelleyin.</p>
+      <p className="hint">
+        <strong>Etkinlik ekle</strong> hemen canlıya yayınlar. Kaydet menüsüne gerek yok.
+      </p>
 
       <div className="admin-fields">
         <label className="admin-label">
@@ -108,9 +152,16 @@ export function EtkinliklerAdmin({
             onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
           />
         </label>
-        <button type="button" className="btn btn-primary" onClick={addItem}>
-          Etkinlik ekle
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy || !draft.title.trim() || !draft.date}
+          onClick={() => void addItem()}
+        >
+          {busy ? 'Yayınlanıyor…' : 'Etkinlik ekle'}
         </button>
+        {msg && <p className="admin-msg ok">{msg}</p>}
+        {err && <p className="admin-msg err">{err}</p>}
       </div>
 
       <div className="admin-grid">
@@ -167,13 +218,16 @@ export function EtkinliklerAdmin({
               <button
                 type="button"
                 className="btn btn-ghost"
+                disabled={busy}
                 onClick={() => {
-                  if (confirm('Bu etkinlik silinsin mi?')) {
-                    onChange({
-                      updatedAt: todayIso(),
+                  if (!confirm('Bu etkinlik silinsin mi? Canlı siteden de kalkacak.')) return
+                  void publish(
+                    {
+                      updatedAt: new Date().toISOString(),
                       items: data.items.filter((x) => x.id !== item.id),
-                    })
-                  }
+                    },
+                    'Etkinlik silindi ve yayınlandı.',
+                  )
                 }}
               >
                 Sil
