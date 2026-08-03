@@ -13,9 +13,10 @@ async function sleep(ms: number) {
   await new Promise((r) => window.setTimeout(r, ms))
 }
 
-/** Canlı Pages JSON’da duyuru görünene kadar bekle (CDN gecikmesi). */
-export async function waitForLiveDuyuru(id: string, timeoutMs = 60000): Promise<boolean> {
-  const url = `https://mustafatemel1986-ops.github.io/tornuk-dernegi/data/duyurular.json`
+/** Canlı raw JSON’da duyuru görünene kadar bekle. */
+export async function waitForLiveDuyuru(id: string, timeoutMs = 30000): Promise<boolean> {
+  const url =
+    'https://raw.githubusercontent.com/mustafatemel1986-ops/tornuk-dernegi/gh-pages/data/duyurular.json'
   const start = Date.now()
   while (Date.now() - start < timeoutMs) {
     try {
@@ -27,7 +28,7 @@ export async function waitForLiveDuyuru(id: string, timeoutMs = 60000): Promise<
     } catch {
       // ağ hatası — tekrar dene
     }
-    await sleep(2500)
+    await sleep(1500)
   }
   return false
 }

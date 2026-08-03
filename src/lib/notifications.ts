@@ -164,9 +164,10 @@ export async function sendTestNotification() {
 export async function checkDuyurularInPage(options?: {
   notify?: boolean
 }): Promise<{ latestId: string | null; isNew: boolean; item: DuyuruLite | null }> {
-  const res = await fetch(`${import.meta.env.BASE_URL}data/duyurular.json?t=${Date.now()}`, {
-    cache: 'no-store',
-  })
+  const res = await fetch(
+    `https://raw.githubusercontent.com/mustafatemel1986-ops/tornuk-dernegi/gh-pages/data/duyurular.json?t=${Date.now()}`,
+    { cache: 'no-store' },
+  )
   if (!res.ok) return { latestId: null, isNew: false, item: null }
 
   const data = (await res.json()) as { items: DuyuruLite[] }

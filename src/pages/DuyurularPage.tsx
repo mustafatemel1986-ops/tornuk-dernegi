@@ -71,6 +71,11 @@ export function DuyurularPage() {
       <header className="page-head">
         <h1>Duyurular</h1>
         <p>Genel kurul, toplantı ve önemli haberler.</p>
+        {data?.updatedAt && (
+          <p className="hint" style={{ marginTop: '0.25rem' }}>
+            Son güncelleme: {new Date(data.updatedAt).toLocaleString('tr-TR')}
+          </p>
+        )}
         <button
           type="button"
           className="btn btn-ghost"

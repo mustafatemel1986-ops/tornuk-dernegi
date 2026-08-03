@@ -80,7 +80,10 @@ async function notifyClientsPlaySound() {
 
 async function checkDuyurular() {
   const base = self.registration.scope
-  const res = await fetch(`${base}data/duyurular.json?t=${Date.now()}`, { cache: 'no-store' })
+  const res = await fetch(
+    `https://raw.githubusercontent.com/mustafatemel1986-ops/tornuk-dernegi/gh-pages/data/duyurular.json?t=${Date.now()}`,
+    { cache: 'no-store' },
+  )
   if (!res.ok) return
 
   const data = (await res.json()) as {

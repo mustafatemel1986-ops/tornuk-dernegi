@@ -3,6 +3,7 @@ import { isAdminLoggedIn, setAdminLoggedIn, getAdminSessionPin } from '../lib/ad
 import { pushAdminData } from '../lib/githubSave'
 import {
   clearLiveData,
+  LIVE_DATA_BASE,
   setLiveAnnouncements,
   setLiveEvents,
   setLiveMembers,
@@ -57,11 +58,10 @@ export function AdminApp() {
         setLoadError(null)
         setDraftNote(null)
 
-        const base = import.meta.env.BASE_URL
         const [mRes, dRes, eRes] = await Promise.all([
-          fetch(`${base}data/uyeler.json?t=${Date.now()}`, { cache: 'no-store' }),
-          fetch(`${base}data/duyurular.json?t=${Date.now()}`, { cache: 'no-store' }),
-          fetch(`${base}data/etkinlikler.json?t=${Date.now()}`, { cache: 'no-store' }),
+          fetch(`${LIVE_DATA_BASE}/uyeler.json?t=${Date.now()}`, { cache: 'no-store' }),
+          fetch(`${LIVE_DATA_BASE}/duyurular.json?t=${Date.now()}`, { cache: 'no-store' }),
+          fetch(`${LIVE_DATA_BASE}/etkinlikler.json?t=${Date.now()}`, { cache: 'no-store' }),
         ])
         if (!mRes.ok || !dRes.ok || !eRes.ok) throw new Error('Veriler yüklenemedi')
         const [m, d, e] = await Promise.all([

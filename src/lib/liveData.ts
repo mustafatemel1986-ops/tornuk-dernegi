@@ -5,6 +5,13 @@ const DUYURU_KEY = 'tornuk-live-duyurular'
 const ETKINLIK_KEY = 'tornuk-live-etkinlikler'
 export const DATA_UPDATED_EVENT = 'tornuk-data-updated'
 
+/**
+ * Canlı veri kaynağı: GitHub raw (Pages CDN gecikmesini baypas eder).
+ * Admin yayınları gh-pages’e yazılır; raw hemen güncellenir.
+ */
+export const LIVE_DATA_BASE =
+  'https://raw.githubusercontent.com/mustafatemel1986-ops/tornuk-dernegi/gh-pages/data'
+
 function read<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key)
@@ -51,32 +58,32 @@ export function clearLiveData() {
   window.dispatchEvent(new Event(DATA_UPDATED_EVENT))
 }
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${import.meta.env.BASE_URL}${path}?t=${Date.now()}&r=${Math.random()}`, {
+async function fetchJson<T>(file: string): Promise<T> {
+  const url = `${LIVE_DATA_BASE}/${file}?t=${Date.now()}&r=${Math.random()}`
+  const res = await fetch(url, {
     cache: 'no-store',
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       Pragma: 'no-cache',
     },
   })
-  if (!res.ok) throw new Error(`${path} yüklenemedi`)
+  if (!res.ok) throw new Error(`${file} yüklenemedi (${res.status})`)
   return res.json() as Promise<T>
 }
 
 /**
- * Üye ekranları her zaman canlı siteden okur.
- * (Eski davranış localStorage taslağını öncelikliyordu; telefon senkronu bozuluyordu.)
+ * Üye ekranları her zaman GitHub raw’dan okur (CDN/SW önbelleği yok).
  */
 export async function loadMembershipData(): Promise<MembershipData> {
-  return fetchJson<MembershipData>('data/uyeler.json')
+  return fetchJson<MembershipData>('uyeler.json')
 }
 
 export async function loadAnnouncementsData(): Promise<AnnouncementsData> {
-  return fetchJson<AnnouncementsData>('data/duyurular.json')
+  return fetchJson<AnnouncementsData>('duyurular.json')
 }
 
 export async function loadEventsData(): Promise<EventsData> {
-  return fetchJson<EventsData>('data/etkinlikler.json')
+  return fetchJson<EventsData>('etkinlikler.json')
 }
 
 export function hasLiveDraft(): boolean {
