@@ -6,6 +6,7 @@ import {
   ensureNotificationPermission,
   getNotifyPreference,
   registerPeriodicDuyuruCheck,
+  sendTestNotification,
   setNotifyPreference,
 } from '../lib/notifications'
 import type { AssociationData } from '../types'
@@ -51,7 +52,20 @@ export function MenuPage() {
     setNotifyOn(true)
     await registerPeriodicDuyuruCheck()
     await askServiceWorkerToCheck()
-    setNotifyMsg('Bildirimler açık. Yeni duyurularda telefonunuza uyarı gidecek.')
+    setNotifyMsg(
+      'Bildirimler açık. Yönetici duyuruyu “Ekle ve yayınla” ile kaydetmeli. Uygulama açıkken veya öne getirilince uyarı + ses gelir (iPhone kapalıyken anlık push yoktur).',
+    )
+  }
+
+  async function testNotify() {
+    try {
+      await sendTestNotification()
+      setNotifyMsg('Test bildirimi gönderildi — ses duyulduysa hazır.')
+      setNotifyOn(true)
+      setNotifyPreference(true)
+    } catch {
+      setNotifyMsg('Test başarısız. Telefon ayarlarından bildirim izni verin.')
+    }
   }
 
   async function copyIban() {
@@ -106,13 +120,18 @@ export function MenuPage() {
           <div className="panel">
             <h2 className="panel-title">Bildirimler</h2>
             <p className="hint">
-              Ana ekrana eklenmiş uygulamada Menü → Bildirimleri Aç. Yeni duyuru için yönetici
-              “Kaydet / Yayınla” ile GitHub’a basmalıdır. iPhone’da uygulama kapalıyken anlık push
-              yoktur; uygulamayı açınca veya açıkken uyarı gelir.
+              1) Ana ekrandan açın · 2) Bildirimleri Aç · 3) Yönetici duyuruyu “Ekle ve yayınla” ile
+              GitHub’a bassın · 4) Uygulamayı açık tutun veya tekrar açın. Gelen duyuruda uyarı + ses
+              çalar.
             </p>
-            <button type="button" className="btn btn-primary" onClick={() => void toggleNotify()}>
-              {notifyOn ? 'Bildirimleri Kapat' : 'Bildirimleri Aç'}
-            </button>
+            <div className="admin-actions" style={{ marginTop: '0.75rem' }}>
+              <button type="button" className="btn btn-primary" onClick={() => void toggleNotify()}>
+                {notifyOn ? 'Bildirimleri Kapat' : 'Bildirimleri Aç'}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => void testNotify()}>
+                Test bildirimi / ses
+              </button>
+            </div>
             {notifyMsg && <p className="note">{notifyMsg}</p>}
           </div>
           <InstallButton />

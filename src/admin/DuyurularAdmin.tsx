@@ -12,15 +12,18 @@ function makeId(title: string) {
     .trim()
     .replace(/\s+/g, '-')
     .slice(0, 40)
-  return `duyuru-${todayIso()}-${slug || 'yeni'}`
+  // Her eklemede benzersiz ID — aynı başlık bildirimi engellemesin
+  return `duyuru-${todayIso()}-${Date.now().toString(36)}-${slug || 'yeni'}`
 }
 
 export function DuyurularAdmin({
   data,
   onChange,
+  onPublish,
 }: {
   data: AnnouncementsData
   onChange: (next: AnnouncementsData) => void
+  onPublish?: (next: AnnouncementsData) => Promise<void>
 }) {
   const [draft, setDraft] = useState({
     title: '',
@@ -28,6 +31,9 @@ export function DuyurularAdmin({
     body: '',
     date: todayIso(),
   })
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
 
   function updateItem(id: string, patch: Partial<Announcement>) {
     onChange({
@@ -37,20 +43,55 @@ export function DuyurularAdmin({
     })
   }
 
-  function addItem() {
-    if (!draft.title.trim() || !draft.summary.trim()) return
-    const item: Announcement = {
+  function buildItem(): Announcement | null {
+    if (!draft.title.trim() || !draft.summary.trim()) return null
+    return {
       id: makeId(draft.title),
       title: draft.title.trim(),
       summary: draft.summary.trim(),
       body: draft.body.trim() || draft.summary.trim(),
       date: draft.date || todayIso(),
     }
+  }
+
+  function addItem() {
+    const item = buildItem()
+    if (!item) return
     onChange({
       updatedAt: new Date().toISOString(),
       items: [item, ...data.items],
     })
     setDraft({ title: '', summary: '', body: '', date: todayIso() })
+    setMsg('Taslağa eklendi. Üyelere gitmesi için “Ekle ve yayınla” veya Kaydet sekmesini kullanın.')
+    setErr(null)
+  }
+
+  async function addAndPublish() {
+    const item = buildItem()
+    if (!item) return
+    if (!onPublish) {
+      addItem()
+      return
+    }
+
+    const next: AnnouncementsData = {
+      updatedAt: new Date().toISOString(),
+      items: [item, ...data.items],
+    }
+
+    setBusy(true)
+    setMsg(null)
+    setErr(null)
+    try {
+      onChange(next)
+      await onPublish(next)
+      setDraft({ title: '', summary: '', body: '', date: todayIso() })
+      setMsg('Yayınlandı. Bildirim açık üyeler uygulamayı açınca / açıkken uyarı + ses alır.')
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : 'Yayın başarısız.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   function moveTop(id: string) {
@@ -66,8 +107,8 @@ export function DuyurularAdmin({
     <div className="admin-panel">
       <h2>Duyurular</h2>
       <p className="hint">
-        Yeni duyuru listenin en üstüne eklenir. Üyelerin görmesi ve bildirim alması için sonra{' '}
-        <strong>Kaydet</strong> sekmesinden “GitHub’a kaydet ve yayınla” yapın.
+        Üyelere bildirim için <strong>Ekle ve yayınla</strong> kullanın (Access Token Kaydet
+        sekmesinde bir kez kayıtlı olmalı). Sadece “Duyuru ekle” yalnızca bu tarayıcıda kalır.
       </p>
 
       <div className="admin-fields">
@@ -100,9 +141,21 @@ export function DuyurularAdmin({
             onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))}
           />
         </label>
-        <button type="button" className="btn btn-primary" onClick={addItem}>
-          Duyuru ekle
-        </button>
+        <div className="admin-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy || !draft.title.trim() || !draft.summary.trim()}
+            onClick={() => void addAndPublish()}
+          >
+            {busy ? 'Yayınlanıyor…' : 'Ekle ve yayınla'}
+          </button>
+          <button type="button" className="btn btn-ghost" disabled={busy} onClick={addItem}>
+            Sadece taslağa ekle
+          </button>
+        </div>
+        {msg && <p className="admin-msg ok">{msg}</p>}
+        {err && <p className="admin-msg err">{err}</p>}
       </div>
 
       <div className="admin-grid">

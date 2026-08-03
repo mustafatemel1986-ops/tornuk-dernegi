@@ -9,6 +9,7 @@ import {
   askServiceWorkerToCheck,
   checkDuyurularInPage,
   getNotifyPreference,
+  listenForNotifySoundFromSw,
   registerPeriodicDuyuruCheck,
 } from './lib/notifications'
 import { AidatPage } from './pages/AidatPage'
@@ -54,16 +55,18 @@ function MemberApp() {
 
   useEffect(() => {
     let cancelled = false
+    const stopSoundListener = listenForNotifySoundFromSw()
 
     async function runCheck() {
       try {
-        const swControlled = Boolean(navigator.serviceWorker?.controller)
+        const preferSw = Boolean(navigator.serviceWorker?.controller)
         if (getNotifyPreference()) {
           await registerPeriodicDuyuruCheck()
-          if (swControlled) await askServiceWorkerToCheck()
+          if (preferSw) await askServiceWorkerToCheck()
         }
+        // SW varken bildirimi SW göstersin (çift ses olmasın); sayfa sadece rozeti günceller
         const result = await checkDuyurularInPage({
-          notify: getNotifyPreference() && document.visibilityState === 'visible',
+          notify: getNotifyPreference() && !preferSw,
         })
         if (!cancelled && result.isNew) setDuyuruBadge(true)
       } catch {
@@ -77,13 +80,22 @@ function MemberApp() {
       if (document.visibilityState === 'visible') void runCheck()
     }
 
+    function onFocus() {
+      void runCheck()
+    }
+
     document.addEventListener('visibilitychange', onVisible)
-    // Bildirimler için daha sık kontrol (özellikle iPhone arka planda çalışmaz)
-    const timer = window.setInterval(() => void runCheck(), 60 * 1000)
+    window.addEventListener('focus', onFocus)
+    // Uygulama açıkken ~15 sn’de bir kontrol (iPhone arka planda çalışmaz)
+    const timer = window.setInterval(() => {
+      if (getNotifyPreference()) void runCheck()
+    }, 15 * 1000)
 
     return () => {
       cancelled = true
+      stopSoundListener()
       document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
       window.clearInterval(timer)
     }
   }, [])

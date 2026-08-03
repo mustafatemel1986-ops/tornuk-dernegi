@@ -5,19 +5,17 @@ import {
   precacheAndRoute,
 } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
-import { NetworkFirst } from 'workbox-strategies'
+import { NetworkOnly } from 'workbox-strategies'
 
 declare let self: ServiceWorkerGlobalScope
 
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
+// Duyuru/aidat her zaman ağdan — eski önbellek bildirimi engellemesin
 registerRoute(
   ({ url }) => url.pathname.includes('/data/') && url.pathname.endsWith('.json'),
-  new NetworkFirst({
-    cacheName: 'live-data',
-    networkTimeoutSeconds: 4,
-  }),
+  new NetworkOnly(),
 )
 
 try {
@@ -39,6 +37,13 @@ async function getLastId(): Promise<string | null> {
 async function setLastId(id: string) {
   const cache = await caches.open(META_CACHE)
   await cache.put(LAST_ID_URL, new Response(id, { headers: { 'Content-Type': 'text/plain' } }))
+}
+
+async function notifyClientsPlaySound() {
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  for (const client of clients) {
+    client.postMessage({ type: 'PLAY_NOTIFY_SOUND' })
+  }
 }
 
 async function checkDuyurular() {
@@ -64,15 +69,20 @@ async function checkDuyurular() {
   const fresh = knownIndex === -1 ? [latest] : data.items.slice(0, knownIndex)
 
   for (const item of fresh.reverse()) {
-    await self.registration.showNotification(item.title, {
+    const options = {
       body: item.summary,
       icon: `${base}icons/icon-192.png`,
       badge: `${base}icons/icon-192.png`,
-      tag: item.id,
+      tag: `duyuru-${item.id}`,
+      silent: false,
       data: { url: `${base}?tab=duyurular` },
-    })
+      renotify: true,
+      vibrate: [200, 80, 200, 80, 400],
+    } as NotificationOptions
+    await self.registration.showNotification(item.title, options)
   }
 
+  await notifyClientsPlaySound()
   await setLastId(latest.id)
 }
 

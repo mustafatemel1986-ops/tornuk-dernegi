@@ -1,3 +1,5 @@
+import { playNotifySound } from './notifySound'
+
 const STORAGE_KEY = 'tornuk-last-duyuru-id'
 const PREF_KEY = 'tornuk-notify-enabled'
 
@@ -37,7 +39,7 @@ export async function registerPeriodicDuyuruCheck() {
   if (periodic.periodicSync) {
     try {
       await periodic.periodicSync.register('check-duyurular', {
-        minInterval: 60 * 60 * 1000,
+        minInterval: 15 * 60 * 1000,
       })
     } catch {
       // İzin yoksa veya desteklenmiyorsa sessizce geç
@@ -56,7 +58,60 @@ export type DuyuruLite = {
   summary: string
 }
 
-/** Uygulama açıkken yeni duyuru kontrolü (iPhone dahil). */
+function iconUrl() {
+  return `${import.meta.env.BASE_URL}icons/icon-192.png`
+}
+
+export async function showDuyuruNotification(
+  item: DuyuruLite,
+  options?: { playSound?: boolean },
+) {
+  if (options?.playSound !== false) playNotifySound()
+
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+
+  const opts: NotificationOptions & { vibrate?: number[]; renotify?: boolean } = {
+    body: item.summary,
+    icon: iconUrl(),
+    badge: iconUrl(),
+    tag: `duyuru-${item.id}`,
+    renotify: true,
+    silent: false,
+    vibrate: [200, 80, 200, 80, 400],
+    data: { url: `${import.meta.env.BASE_URL}?tab=duyurular` },
+  }
+
+  try {
+    const reg = await navigator.serviceWorker?.ready
+    if (reg?.showNotification) {
+      await reg.showNotification(item.title, opts)
+      return
+    }
+  } catch {
+    // fallback aşağıda
+  }
+
+  try {
+    new Notification(item.title, opts)
+  } catch {
+    // bazı tarayıcılarda engelli olabilir
+  }
+}
+
+/** Menüden deneme bildirimi + ses. */
+export async function sendTestNotification() {
+  const permission = await ensureNotificationPermission()
+  if (permission !== 'granted') {
+    throw new Error('Bildirim izni yok')
+  }
+  await showDuyuruNotification({
+    id: `test-${Date.now()}`,
+    title: 'Törnük Derneği',
+    summary: 'Test bildirimi — ses ve uyarı çalışıyor.',
+  })
+}
+
+/** Uygulama açıkken / öne gelince yeni duyuru kontrolü. */
 export async function checkDuyurularInPage(options?: {
   notify?: boolean
 }): Promise<{ latestId: string | null; isNew: boolean; item: DuyuruLite | null }> {
@@ -79,21 +134,22 @@ export async function checkDuyurularInPage(options?: {
 
   if (isNew) {
     setLastSeenDuyuruId(latest.id)
-    if (options?.notify && getNotifyPreference() && Notification.permission === 'granted') {
-      const reg = await navigator.serviceWorker?.ready
-      if (reg?.showNotification) {
-        await reg.showNotification(latest.title, {
-          body: latest.summary,
-          icon: `${import.meta.env.BASE_URL}icons/icon-192.png`,
-          badge: `${import.meta.env.BASE_URL}icons/icon-192.png`,
-          tag: latest.id,
-          data: { url: `${import.meta.env.BASE_URL}?tab=duyurular` },
-        })
-      } else {
-        new Notification(latest.title, { body: latest.summary })
-      }
+    if (options?.notify && getNotifyPreference()) {
+      await showDuyuruNotification(latest)
     }
   }
 
   return { latestId: latest.id, isNew, item: latest }
+}
+
+/** Service worker’dan gelen ses isteğini dinle. */
+export function listenForNotifySoundFromSw() {
+  if (!('serviceWorker' in navigator)) return () => undefined
+
+  function onMessage(event: MessageEvent) {
+    if (event.data?.type === 'PLAY_NOTIFY_SOUND') playNotifySound()
+  }
+
+  navigator.serviceWorker.addEventListener('message', onMessage)
+  return () => navigator.serviceWorker.removeEventListener('message', onMessage)
 }

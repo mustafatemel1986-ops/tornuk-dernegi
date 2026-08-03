@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { isAdminLoggedIn, setAdminLoggedIn } from '../lib/adminAuth'
+import { loadGithubSettings, pushAdminData, saveGithubSettings } from '../lib/githubSave'
 import {
   getLiveAnnouncements,
   getLiveEvents,
@@ -164,6 +165,18 @@ export function AdminApp() {
             setAnnouncements(next)
             setLiveAnnouncements(next)
             setDirty(true)
+          }}
+          onPublish={async (next) => {
+            const settings = loadGithubSettings()
+            saveGithubSettings(settings)
+            await pushAdminData(settings, [
+              { path: 'public/data/uyeler.json', data: members },
+              { path: 'public/data/duyurular.json', data: next },
+              { path: 'public/data/etkinlikler.json', data: events },
+            ])
+            setAnnouncements(next)
+            setLiveAnnouncements(next)
+            setDirty(false)
           }}
         />
       )}
