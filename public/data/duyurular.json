@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-03T08:11:37.755Z",
+  "updatedAt": "2026-08-03T08:11:49.200Z",
   "items": [
     {
       "id": "duyuru-2026-08-03-mscy90ui-denem",
@@ -7,13 +7,6 @@
       "summary": "Denem",
       "body": "Dene",
       "date": "2026-08-07"
-    },
-    {
-      "id": "duyuru-2026-07-aidat",
-      "title": "Aidat hatırlatması",
-      "date": "2026-07-10",
-      "summary": "Temmuz ayı aidat ödemeleri için son gün 31 Temmuz'dur.",
-      "body": "Sayın üyelerimiz, temmuz ayı aidat ödemelerinizi uygulama üzerinden borç durumunuzu kontrol ederek gerçekleştirebilirsiniz. Ödeme için IBAN bilgisine Bağış / Ödeme bölümünden ulaşabilirsiniz."
     }
   ]
 }
