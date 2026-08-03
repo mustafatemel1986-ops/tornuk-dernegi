@@ -16,6 +16,9 @@ const DEFAULTS: GithubSettings = {
   token: '',
 }
 
+/** Tüm GitHub yazımlarını sıraya al — paralel yayın çakışmasını önler. */
+let publishQueue: Promise<void> = Promise.resolve()
+
 export function loadGithubSettings(): GithubSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
@@ -38,11 +41,24 @@ function apiHeaders(token: string) {
   }
 }
 
-async function githubJson<T>(
-  url: string,
-  token: string,
-  init?: RequestInit,
-): Promise<T> {
+function isConflictError(error: unknown): boolean {
+  const text = error instanceof Error ? error.message : String(error)
+  return (
+    text === 'CONFLICT' ||
+    text.includes('"status": "409"') ||
+    text.includes(' 409 ') ||
+    text.includes(' 422 ') ||
+    text.includes('does not match') ||
+    text.includes('Update is not a fast forward') ||
+    text.includes('not a fast-forward')
+  )
+}
+
+async function sleep(ms: number) {
+  await new Promise((r) => window.setTimeout(r, ms))
+}
+
+async function githubJson<T>(url: string, token: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
     headers: {
@@ -58,7 +74,7 @@ async function githubJson<T>(
   return (await res.json()) as T
 }
 
-/** Tek commit ile birden fazla dosya yazar (409 SHA çakışmasını önler). */
+/** Tek commit ile birden fazla dosya yazar. */
 async function commitFilesOnBranch(
   settings: GithubSettings,
   branch: string,
@@ -68,8 +84,9 @@ async function commitFilesOnBranch(
   const base = `https://api.github.com/repos/${settings.owner}/${settings.repo}`
   const token = settings.token
 
+  // Her denemede taze SHA al
   const ref = await githubJson<{ object: { sha: string } }>(
-    `${base}/git/ref/heads/${encodeURIComponent(branch)}`,
+    `${base}/git/ref/heads/${encodeURIComponent(branch)}?t=${Date.now()}`,
     token,
   )
   const latestCommitSha = ref.object.sha
@@ -133,36 +150,28 @@ async function commitFilesWithRetry(
   files: { path: string; content: string }[],
   message: string,
 ) {
-  let lastError: unknown
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const maxAttempts = 8
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       await commitFilesOnBranch(settings, branch, files, message)
       return
     } catch (error) {
-      lastError = error
-      const text = error instanceof Error ? error.message : String(error)
-      if (text === 'CONFLICT' || text.includes('"status": "409"') || text.includes(' 409 ')) {
-        await new Promise((r) => window.setTimeout(r, 400 * (attempt + 1)))
-        continue
-      }
-      throw error
+      if (!isConflictError(error)) throw error
+      const wait = Math.min(8000, 500 * 2 ** attempt) + Math.floor(Math.random() * 300)
+      await sleep(wait)
     }
   }
+
   throw new Error(
-    `Kayıt çakışması (${branch}). Birkaç saniye sonra tekrar deneyin. ${
-      lastError instanceof Error ? lastError.message : ''
-    }`,
+    `Kayıt çakışması (${branch}). Lütfen 5–10 saniye bekleyip aynı işlemi tekrar deneyin.`,
   )
 }
 
-export async function pushAdminData(
+async function pushAdminDataUnlocked(
   settings: GithubSettings,
   files: { path: string; data: unknown }[],
 ) {
-  if (!settings.owner || !settings.repo || !settings.token) {
-    throw new Error('GitHub kullanıcı adı, depo adı ve erişim anahtarı gerekli.')
-  }
-
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ')
   const message = `admin: veri güncellendi (${stamp})`
 
@@ -178,4 +187,20 @@ export async function pushAdminData(
 
   await commitFilesWithRetry(settings, settings.branch || 'main', mainFiles, message)
   await commitFilesWithRetry(settings, 'gh-pages', liveFiles, message)
+}
+
+export async function pushAdminData(
+  settings: GithubSettings,
+  files: { path: string; data: unknown }[],
+) {
+  if (!settings.owner || !settings.repo || !settings.token) {
+    throw new Error('GitHub kullanıcı adı, depo adı ve erişim anahtarı gerekli.')
+  }
+
+  const run = publishQueue.catch(() => undefined).then(() => pushAdminDataUnlocked(settings, files))
+  publishQueue = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  await run
 }

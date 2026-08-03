@@ -36,7 +36,6 @@ export function AdminApp() {
   const [reloadToken, setReloadToken] = useState(0)
   const dataRef = useRef({ members, announcements, events })
   const aidatTimer = useRef<number | null>(null)
-  const publishChain = useRef(Promise.resolve())
 
   dataRef.current = { members, announcements, events }
 
@@ -103,39 +102,35 @@ export function AdminApp() {
       }
       saveGithubSettings(settings)
 
-      const nextMembers = patch?.members ?? dataRef.current.members
-      const nextAnnouncements = patch?.announcements ?? dataRef.current.announcements
-      const nextEvents = patch?.events ?? dataRef.current.events
+      // Sıra githubSave kuyruğunda; çalışırken en güncel dataRef kullanılır
+      if (patch?.members) dataRef.current = { ...dataRef.current, members: patch.members }
+      if (patch?.announcements) {
+        dataRef.current = { ...dataRef.current, announcements: patch.announcements }
+      }
+      if (patch?.events) dataRef.current = { ...dataRef.current, events: patch.events }
+
+      const nextMembers = dataRef.current.members
+      const nextAnnouncements = dataRef.current.announcements
+      const nextEvents = dataRef.current.events
       if (!nextMembers || !nextAnnouncements || !nextEvents) {
         throw new Error('Veriler henüz yüklenmedi.')
       }
 
-      const run = async () => {
-        await pushAdminData(settings, [
-          { path: 'public/data/uyeler.json', data: nextMembers },
-          { path: 'public/data/duyurular.json', data: nextAnnouncements },
-          { path: 'public/data/etkinlikler.json', data: nextEvents },
-        ])
-        setMembers(nextMembers)
-        setAnnouncements(nextAnnouncements)
-        setEvents(nextEvents)
-        setLiveMembers(nextMembers)
-        setLiveAnnouncements(nextAnnouncements)
-        setLiveEvents(nextEvents)
-        dataRef.current = {
-          members: nextMembers,
-          announcements: nextAnnouncements,
-          events: nextEvents,
-        }
-        setDirty(false)
-        setDraftNote(null)
-        setPublishNote('Canlıya yayınlandı.')
-      }
+      await pushAdminData(settings, [
+        { path: 'public/data/uyeler.json', data: nextMembers },
+        { path: 'public/data/duyurular.json', data: nextAnnouncements },
+        { path: 'public/data/etkinlikler.json', data: nextEvents },
+      ])
 
-      publishChain.current = publishChain.current
-        .catch(() => undefined)
-        .then(() => run())
-      await publishChain.current
+      setMembers(nextMembers)
+      setAnnouncements(nextAnnouncements)
+      setEvents(nextEvents)
+      setLiveMembers(nextMembers)
+      setLiveAnnouncements(nextAnnouncements)
+      setLiveEvents(nextEvents)
+      setDirty(false)
+      setDraftNote(null)
+      setPublishNote('Canlıya yayınlandı.')
     },
     [],
   )
@@ -152,7 +147,7 @@ export function AdminApp() {
         .catch((error) =>
           setDraftNote(error instanceof Error ? error.message : 'Aidat yayını başarısız.'),
         )
-    }, 1500)
+    }, 2500)
   }
 
   if (!authed) {
