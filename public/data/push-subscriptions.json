@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-03T19:04:41.040Z",
+  "updatedAt": "2026-08-03T19:04:41.377Z",
   "subscriptions": [
     {
       "endpoint": "https://fcm.googleapis.com/fcm/send/fUKN-8WIS-E:APA91bHNqAyiay-IvSzczbl77JPxUbHi_Jc5DnWPyC_qPIG-RvoLpVKwhHm1Dnp9UTWBCheoGd02T5uInUlBui7Xbdq2hNstjd0OIKX7_pfpfchP_-Uy_CJljG46kvGsbZ9rrDVv2eAW",
@@ -7,7 +7,7 @@
         "p256dh": "BPZm_gJsYDKlDydNs7jd2BPDS4Wd5XR9yTf8Azc2Gh9m6NXdHEDBLQTV0EAHcepoCK_1NubkD9NwplW_umNUyAw",
         "auth": "MGDVjuOD9mEzYZMEW21A9Q"
       },
-      "createdAt": "2026-08-03T19:04:41.040Z"
+      "createdAt": "2026-08-03T19:04:41.377Z"
     },
     {
       "endpoint": "https://fcm.googleapis.com/fcm/send/eHOhkup0f9I:APA91bE0Di0LKAb9bbjrlkXBu9_StZweDiZlL9BHEbWsA6sWuDi_vFHF1hZzT-4AHI-8vm9Ka_q0L2wQ2qjW2TQbLb8gw6FYsHXJFQtMH2QmAWGPpg3cwJEtX1lLc_Um0Q4mJeANP4g0",
