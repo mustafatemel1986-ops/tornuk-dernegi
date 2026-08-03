@@ -31,6 +31,7 @@ import { DuyurularPage } from './pages/DuyurularPage'
 import { EtkinliklerPage } from './pages/EtkinliklerPage'
 import { HomePage } from './pages/HomePage'
 import { MenuPage } from './pages/MenuPage'
+import { subscribeWebPush } from './lib/webPush'
 import type { TabId } from './types'
 
 function getInitialTab(): TabId {
@@ -95,9 +96,7 @@ function MemberApp() {
   // Bildirim açıkken Web Push aboneliğini yenile (kapalıyken bildirim)
   useEffect(() => {
     if (!notifyReady) return
-    void import('./lib/webPush')
-      .then((m) => m.subscribeWebPush())
-      .catch(() => undefined)
+    void subscribeWebPush().catch(() => undefined)
   }, [notifyReady])
 
   // Uygulama açıkken anlık bildirim: ntfy EventSource (CDN beklemeden)
