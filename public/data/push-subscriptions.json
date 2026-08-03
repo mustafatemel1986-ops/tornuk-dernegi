@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-03T12:59:09.131Z",
+  "updatedAt": "2026-08-03T14:07:14.594Z",
   "subscriptions": [
     {
       "endpoint": "https://fcm.googleapis.com/fcm/send/egfX8K9VYEI:APA91bF0MFWRjvAf7J327lOBb3GIds8VJYR9Yf9KBTB_x7gsFflRjfT2Y-Labe7QeH7gG3rkPW9mvBIXwhFZ7wNcDZEGl1_J6n2CncPuVhR45qnvdJSy_wOHGF4UkLqJ-VjoNL21fnkR",
@@ -7,7 +7,7 @@
         "p256dh": "BNGqq63jzRpcgyDo05N3FMZnJn8w8mTQMQrGBOt9pXni5Yb7qYl038JBV4ZGCN9_tJ0QA29GCaKPaLdMtVYHIg8",
         "auth": "9Y390IURbG62hTzjL6T6kw"
       },
-      "createdAt": "2026-08-03T12:57:38.997Z"
+      "createdAt": "2026-08-03T14:07:14.594Z"
     }
   ]
 }
