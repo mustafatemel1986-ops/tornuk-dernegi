@@ -1,4 +1,5 @@
 import { enqueueClosedAppPush } from './pushOutbox'
+import { sendClosedAppPushNow } from './sendWebPushBrowser'
 import { getAdminSessionPin } from './adminAuth'
 import { PUBLISH_API_URL } from './publishConfig'
 
@@ -88,18 +89,22 @@ export async function publishNotifyToNtfy(item: {
   title: string
   summary: string
 }): Promise<void> {
-  // Kapalı uygulama: GitHub outbox → Worker cron → Web Push (iş ağında Worker engelli olsa da)
+  // Kapalı uygulama: 1) admin tarayıcısından hemen Web Push  2) outbox yedek
+  try {
+    await sendClosedAppPushNow(item)
+  } catch {
+    // FCM engelli olabilir
+  }
   try {
     await enqueueClosedAppPush(item)
   } catch {
-    // bridge yoksa sessiz; cron duyuru listesinden de dener
+    // bridge yoksa sessiz
   }
 
   let lastError: unknown
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       await postNtfyDirect(item)
-      // Worker açıksa Web Push’i de hemen tetikle
       void postNtfyViaWorker(item).catch(() => undefined)
       return
     } catch (error) {

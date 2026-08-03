@@ -1,4 +1,5 @@
 import { clearBridgeGithubToken, unlockBridgeToken } from './bridgeUnlock'
+import { clearVapidPrivateJwk, unlockVapidSeal } from './vapidUnlock'
 
 const SESSION_KEY = 'tornuk-admin-session'
 const PIN_KEY = 'tornuk-admin-pin'
@@ -37,10 +38,12 @@ export async function setAdminLoggedIn(value: boolean, pin?: string) {
     if (pin) {
       sessionStorage.setItem(PIN_KEY, pin.trim())
       await unlockBridgeToken(pin)
+      await unlockVapidSeal(pin)
     }
   } else {
     sessionStorage.removeItem(SESSION_KEY)
     sessionStorage.removeItem(PIN_KEY)
     clearBridgeGithubToken()
+    clearVapidPrivateJwk()
   }
 }
