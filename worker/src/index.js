@@ -355,6 +355,31 @@ async function handleNotify(request, env, origin) {
       summary: typeof body.summary === 'string' ? body.summary : '',
       description: typeof body.description === 'string' ? body.description : '',
     })
+
+    // Kapalı uygulamalar için Web Push (cron beklemeden)
+    if (env.VAPID_PRIVATE_JWK && env.GITHUB_TOKEN) {
+      const title = typeof body.title === 'string' ? body.title : 'Törnük Derneği'
+      const summary =
+        (typeof body.summary === 'string' && body.summary) ||
+        (typeof body.description === 'string' && body.description) ||
+        title
+      const id = typeof body.id === 'string' ? body.id : undefined
+      const tab = kind === 'etkinlik' ? 'etkinlikler' : 'duyurular'
+      const key = kind === 'etkinlik' ? 'etkinlik' : 'duyuru'
+      const store = await readPushSubs(env.GITHUB_TOKEN)
+      if (store.subscriptions.length) {
+        await broadcastWebPush(env, store.subscriptions, {
+          title,
+          body: summary,
+          kind,
+          id,
+          url: `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=${tab}&r=${Date.now()}${
+            id ? `&${key}=${encodeURIComponent(id)}` : ''
+          }`,
+        })
+      }
+    }
+
     return json({ ok: true }, 200, origin)
   } catch (error) {
     return json(
@@ -647,7 +672,10 @@ async function broadcastWebPush(env, subscriptions, payload) {
   for (const sub of subscriptions) {
     try {
       const result = await sendOneWebPush(env, sub, payload)
-      if (result.status === 404 || result.status === 410) dead.push(sub.endpoint)
+      // 404/410: abonelik silinmiş; 403: VAPID anahtarı uyuşmuyor (yeniden abone olmalı)
+      if (result.status === 404 || result.status === 410 || result.status === 403) {
+        dead.push(sub.endpoint)
+      }
     } catch {
       // tek abonelik hatası tümünü durdurmasın
     }

@@ -1,4 +1,7 @@
+/** Kapalı uygulamada da bildirim için Web Push aboneliği. */
 import { PUBLISH_API_URL } from './publishConfig'
+
+const VAPID_CACHE_KEY = 'tornuk-vapid-public'
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -32,12 +35,31 @@ export async function subscribeWebPush(): Promise<boolean> {
 
   const reg = await navigator.serviceWorker.ready
   let sub = await reg.pushManager.getSubscription()
+  const cachedKey = localStorage.getItem(VAPID_CACHE_KEY)
+
+  // Anahtar değiştiyse eski abonelik FCM’de 403 verir — zorunlu yenile
+  if (sub && cachedKey && cachedKey !== publicKey) {
+    try {
+      await fetch(`${PUBLISH_API_URL}/push/unsubscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      })
+    } catch {
+      // Worker engelli olabilir
+    }
+    await sub.unsubscribe().catch(() => undefined)
+    sub = null
+  }
+
   if (!sub) {
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey),
     })
   }
+
+  localStorage.setItem(VAPID_CACHE_KEY, publicKey)
 
   const payload = sub.toJSON()
   const res = await fetch(`${PUBLISH_API_URL}/push/subscribe`, {
@@ -68,4 +90,5 @@ export async function unsubscribeWebPush(): Promise<void> {
     // Worker engelli olabilir
   }
   await sub.unsubscribe()
+  localStorage.removeItem(VAPID_CACHE_KEY)
 }

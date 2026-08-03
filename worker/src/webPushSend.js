@@ -39,5 +39,6 @@ export async function sendOneWebPush(env, subscription, payload) {
   })
 
   const res = await fetch(endpoint, { method: 'POST', headers, body })
-  return { ok: res.ok, status: res.status }
+  const text = await res.text().catch(() => '')
+  return { ok: res.ok, status: res.status, text }
 }
