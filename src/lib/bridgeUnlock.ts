@@ -16,7 +16,7 @@ function b64ToBytes(b64: string): Uint8Array {
   return out
 }
 
-function bytesToString(bytes: Uint8Array): string {
+function bytesToString(bytes: ArrayBuffer): string {
   return new TextDecoder().decode(bytes)
 }
 
@@ -29,7 +29,11 @@ type BridgeFile = {
   data: string
 }
 
-/** Girişte PIN ile bridge.json çözer; başarısızsa null (yalnızca Worker). */
+function toBufferSource(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
+}
+
+/** Girişte PIN ile bridge.json çözer; başarısızsa false (yalnızca Worker). */
 export async function unlockBridgeToken(pin: string): Promise<boolean> {
   clearBridgeGithubToken()
   try {
@@ -53,7 +57,7 @@ export async function unlockBridgeToken(pin: string): Promise<boolean> {
     const key = await crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt,
+        salt: toBufferSource(salt),
         iterations: bridge.iter || 250000,
         hash: 'SHA-256',
       },
@@ -67,8 +71,12 @@ export async function unlockBridgeToken(pin: string): Promise<boolean> {
     cipher.set(data)
     cipher.set(tag, data.length)
 
-    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher)
-    const token = bytesToString(new Uint8Array(plain)).trim()
+    const plain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: toBufferSource(iv) },
+      key,
+      toBufferSource(cipher),
+    )
+    const token = bytesToString(plain).trim()
     if (!token.startsWith('ghp_') && !token.startsWith('github_pat_') && !token.startsWith('gho_')) {
       return false
     }

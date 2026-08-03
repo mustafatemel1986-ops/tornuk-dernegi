@@ -1,3 +1,5 @@
+import { clearBridgeGithubToken, unlockBridgeToken } from './bridgeUnlock'
+
 const SESSION_KEY = 'tornuk-admin-session'
 const PIN_KEY = 'tornuk-admin-pin'
 export const SALT = 'tornuk-admin-v1'
@@ -29,12 +31,16 @@ export function getAdminSessionPin(): string | null {
   return sessionStorage.getItem(PIN_KEY)
 }
 
-export function setAdminLoggedIn(value: boolean, pin?: string) {
+export async function setAdminLoggedIn(value: boolean, pin?: string) {
   if (value) {
     sessionStorage.setItem(SESSION_KEY, '1')
-    if (pin) sessionStorage.setItem(PIN_KEY, pin.trim())
+    if (pin) {
+      sessionStorage.setItem(PIN_KEY, pin.trim())
+      await unlockBridgeToken(pin)
+    }
   } else {
     sessionStorage.removeItem(SESSION_KEY)
     sessionStorage.removeItem(PIN_KEY)
+    clearBridgeGithubToken()
   }
 }
