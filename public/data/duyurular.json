@@ -1,6 +1,13 @@
 {
-  "updatedAt": "2026-08-03T07:30:16.728Z",
+  "updatedAt": "2026-08-03T07:32:17.645Z",
   "items": [
+    {
+      "id": "duyuru-2026-08-03-deneme",
+      "title": "Deneme",
+      "summary": "Deneme için test",
+      "body": "Bu bildirim size törnük derneği uygulamasından deneme amaçlı atılmıştır.",
+      "date": "2026-08-03"
+    },
     {
       "id": "duyuru-2026-08-03-ad",
       "title": "ad",
