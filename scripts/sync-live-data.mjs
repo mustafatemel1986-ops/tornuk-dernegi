@@ -18,7 +18,9 @@ const FILES = [
   'bridge.json',
   'dernek.json',
   'vapid.json',
+  'vapid-seal.json',
   'push-subscriptions.json',
+  'push-outbox.json',
 ]
 
 const distData = join(process.cwd(), 'dist', 'data')

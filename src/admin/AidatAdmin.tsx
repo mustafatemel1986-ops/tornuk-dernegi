@@ -39,7 +39,8 @@ export function AidatAdmin({
   onChange: (next: MembershipData) => void
 }) {
   const [query, setQuery] = useState('')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [payAmount, setPayAmount] = useState('')
   const [payMonths, setPayMonths] = useState<string[]>([])
   const [newName, setNewName] = useState('')
@@ -59,7 +60,15 @@ export function AidatAdmin({
       .filter((m) => !q || m.displayName.toLocaleLowerCase('tr').includes(q))
   }, [data.members, data.monthlyFee, query])
 
-  const selected = data.members.find((m) => m.idHash === selectedId) ?? null
+  const allSelected = filtered.length > 0 && filtered.every((m) => selected.has(m.idHash))
+  const selectedCount = selected.size
+
+  const selectedMembers = useMemo(
+    () => data.members.filter((m) => selected.has(m.idHash)),
+    [data.members, selected],
+  )
+
+  const activeMember = openId ? data.members.find((m) => m.idHash === openId) ?? null : null
 
   function updateMember(idHash: string, patch: Partial<MemberRecord>) {
     onChange({
@@ -85,8 +94,38 @@ export function AidatAdmin({
     })
   }
 
+  function toggleOne(idHash: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(idHash)) next.delete(idHash)
+      else next.add(idHash)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelected(new Set())
+      return
+    }
+    setSelected(new Set(filtered.map((m) => m.idHash)))
+  }
+
+  function removeSelected() {
+    if (!selectedCount) return
+    if (!confirm(`${selectedCount} üye silinsin mi? Canlı listeden de kalkacak.`)) return
+    onChange({
+      ...data,
+      updatedAt: nowIso(),
+      members: data.members.filter((m) => !selected.has(m.idHash)),
+    })
+    if (openId && selected.has(openId)) setOpenId(null)
+    setSelected(new Set())
+    setMsg(`${selectedCount} üye silindi.`)
+  }
+
   function applyPayment() {
-    if (!selected) return
+    if (!activeMember) return
     const amount = Number(payAmount.replace(',', '.'))
     if (!Number.isFinite(amount) || amount <= 0) {
       setMsg('Geçerli bir ödeme tutarı girin.')
@@ -96,12 +135,12 @@ export function AidatAdmin({
     const monthsToClear =
       payMonths.length > 0
         ? payMonths
-        : selected.debtMonths.slice(
+        : activeMember.debtMonths.slice(
             -Math.max(1, Math.floor(amount / Math.max(data.monthlyFee, 1))),
           )
 
-    const nextMonths = selected.debtMonths.filter((m) => !monthsToClear.includes(m))
-    let history = ensureYearHistory(selected, data.monthlyFee)
+    const nextMonths = activeMember.debtMonths.filter((m) => !monthsToClear.includes(m))
+    let history = ensureYearHistory(activeMember, data.monthlyFee)
 
     const clearedYears = yearsFromMonthKeys(monthsToClear)
     for (const year of clearedYears) {
@@ -117,7 +156,6 @@ export function AidatAdmin({
       }
     }
 
-    // Aylık seçilmediyse tutarı mevcut borçlu yıldan düş
     if (payMonths.length === 0 && clearedYears.length === 0) {
       const openYear = history.find((y) => y.status === 'borclu')
       if (openYear) {
@@ -129,36 +167,36 @@ export function AidatAdmin({
       }
     }
 
-    updateMember(selected.idHash, {
+    updateMember(activeMember.idHash, {
       debtMonths: nextMonths,
       yearHistory: history,
       lastPayment: todayIso(),
-      notes: totalDebtFromHistory(history) === 0 ? 'Güncel' : selected.notes,
+      notes: totalDebtFromHistory(history) === 0 ? 'Güncel' : activeMember.notes,
     })
 
     setPayAmount('')
     setPayMonths([])
     setMsg(
-      `${selected.displayName} için ${formatMoney(amount)} ödeme işlendi. Kalan borç: ${formatMoney(totalDebtFromHistory(history))}`,
+      `${activeMember.displayName} için ${formatMoney(amount)} ödeme işlendi. Kalan borç: ${formatMoney(totalDebtFromHistory(history))}`,
     )
   }
 
   function markFullyPaid() {
-    if (!selected) return
+    if (!activeMember) return
     const history = markYearsPaid(
-      ensureYearHistory(selected, data.monthlyFee),
-      ensureYearHistory(selected, data.monthlyFee)
+      ensureYearHistory(activeMember, data.monthlyFee),
+      ensureYearHistory(activeMember, data.monthlyFee)
         .filter((y) => y.status === 'borclu')
         .map((y) => y.year),
     )
-    updateMember(selected.idHash, {
+    updateMember(activeMember.idHash, {
       debtAmount: 0,
       debtMonths: [],
       yearHistory: history,
       lastPayment: todayIso(),
       notes: 'Güncel',
     })
-    setMsg(`${selected.displayName} tüm yıllarda ödendi olarak işaretlendi.`)
+    setMsg(`${activeMember.displayName} tüm yıllarda ödendi olarak işaretlendi.`)
   }
 
   async function addMember() {
@@ -199,6 +237,7 @@ export function AidatAdmin({
     })
     setNewName('')
     setNewTc('')
+    setOpenId(idHash)
     setMsg(
       `Yeni üye eklendi (${maskDisplayName(newName)}). Aidat sekmesinde aynı T.C. ile hemen sorgulanabilir.`,
     )
@@ -241,11 +280,25 @@ export function AidatAdmin({
     setMsg(`${year} yılı eklendi.`)
   }
 
+  function openMember(member: MemberRecord) {
+    const nextOpen = openId === member.idHash ? null : member.idHash
+    setOpenId(nextOpen)
+    setPayMonths([])
+    setPayAmount('')
+    setMsg(null)
+    if (nextOpen && !member.yearHistory?.length) {
+      updateMember(member.idHash, {
+        yearHistory: ensureYearHistory(member, data.monthlyFee),
+      })
+    }
+  }
+
   return (
     <div className="admin-panel">
       <h2>Aidat yönetimi</h2>
       <p className="hint">
-        Her yıl için Ödendi / Borçlu durumunu güncelleyin. Üyeler sorguda geçmiş yılları da görür.
+        Üyeleri seçip toplu silebilirsiniz. Düzenlemek için satırı açın. Değişiklikler otomatik
+        yayınlanır.
       </p>
 
       <ImportMembers data={data} onChange={onChange} />
@@ -278,55 +331,128 @@ export function AidatAdmin({
 
       {msg && <p className="admin-msg ok">{msg}</p>}
 
-      <div className="admin-grid">
+      <div className="admin-bulk-bar">
+        <label className="admin-check">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={toggleAll}
+            disabled={!filtered.length}
+          />
+          Tümünü seç ({filtered.length})
+        </label>
+        <div className="admin-actions">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={!selectedCount}
+            onClick={() => setSelected(new Set())}
+          >
+            Seçimi temizle
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!selectedCount}
+            onClick={removeSelected}
+          >
+            Seçilenleri sil ({selectedCount})
+          </button>
+        </div>
+      </div>
+
+      {selectedCount > 0 && (
+        <p className="hint">
+          Seçili:{' '}
+          {selectedMembers
+            .slice(0, 3)
+            .map((m) => m.displayName)
+            .join(', ')}
+          {selectedCount > 3 ? ` +${selectedCount - 3}` : ''}
+        </p>
+      )}
+
+      <div className="admin-list">
         {filtered.map((member) => {
           const history = ensureYearHistory(member, data.monthlyFee)
           const debt = totalDebtFromHistory(history)
+          const open = openId === member.idHash
+          const checked = selected.has(member.idHash)
           return (
             <article
               key={member.idHash}
-              className="admin-card"
-              style={selectedId === member.idHash ? { borderColor: 'var(--brand)' } : undefined}
+              className={`admin-list-row ${open ? 'is-open' : ''} ${checked ? 'is-selected' : ''}`}
             >
-              <div className="admin-card-head">
-                <strong>{member.displayName}</strong>
-                <span className={`badge ${debt > 0 ? 'badge-debt' : 'badge-ok'}`}>
-                  {formatMoney(debt)}
-                </span>
-              </div>
-
-              <YearHistory member={member} monthlyFee={data.monthlyFee} compact />
-
-              <div className="admin-actions">
+              <div className="admin-list-main">
+                <label className="admin-check">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleOne(member.idHash)}
+                  />
+                </label>
                 <button
                   type="button"
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    setSelectedId(member.idHash)
-                    setPayMonths([])
-                    setPayAmount('')
-                    setMsg(null)
-                    // Eksik yearHistory varsa kayda yaz
-                    if (!member.yearHistory?.length) {
-                      updateMember(member.idHash, {
-                        yearHistory: ensureYearHistory(member, data.monthlyFee),
-                      })
-                    }
-                  }}
+                  className="admin-list-title"
+                  onClick={() => openMember(member)}
                 >
-                  Seç / Düzenle
+                  <strong>{member.displayName}</strong>
+                  <span className="hint">
+                    {formatMoney(debt)}
+                    {debt > 0 ? ' borç' : ' · güncel'}
+                  </span>
                 </button>
-                <button type="button" className="btn btn-ghost" onClick={() => addDebtMonth(member)}>
-                  Bu ay borcu ekle
-                </button>
+                <div className="admin-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => openMember(member)}
+                  >
+                    {open ? 'Kapat' : 'Düzenle'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => addDebtMonth(member)}
+                  >
+                    Bu ay borcu
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      if (!confirm('Bu üyeyi listeden silmek istiyor musunuz?')) return
+                      onChange({
+                        ...data,
+                        updatedAt: nowIso(),
+                        members: data.members.filter((m) => m.idHash !== member.idHash),
+                      })
+                      setSelected((prev) => {
+                        const n = new Set(prev)
+                        n.delete(member.idHash)
+                        return n
+                      })
+                      if (openId === member.idHash) setOpenId(null)
+                      setMsg('Üye silindi.')
+                    }}
+                  >
+                    Sil
+                  </button>
+                </div>
               </div>
 
-              {selectedId === member.idHash && (
-                <div className="admin-fields">
+              {open && (
+                <div className="admin-fields admin-list-edit">
+                  <YearHistory member={member} monthlyFee={data.monthlyFee} compact />
+
                   <div className="admin-panel" style={{ padding: '0.85rem', boxShadow: 'none' }}>
                     <strong>Yıllık durum</strong>
                     {history.map((item) => (
-                      <div key={item.year} className="admin-fields two" style={{ marginTop: '0.5rem' }}>
+                      <div
+                        key={item.year}
+                        className="admin-fields two"
+                        style={{ marginTop: '0.5rem' }}
+                      >
                         <label className="admin-label">
                           {item.year} durumu
                           <select
@@ -429,8 +555,9 @@ export function AidatAdmin({
                         let nextHistory = ensureYearHistory(member, data.monthlyFee)
                         const years = yearsFromMonthKeys(debtMonths)
                         for (const year of years) {
-                          const count = debtMonths.filter((m) => Number(m.slice(0, 4)) === year)
-                            .length
+                          const count = debtMonths.filter(
+                            (m) => Number(m.slice(0, 4)) === year,
+                          ).length
                           nextHistory = upsertYear(nextHistory, year, {
                             status: 'borclu',
                             debtAmount: count * data.monthlyFee,
@@ -493,23 +620,6 @@ export function AidatAdmin({
                       </button>
                       <button type="button" className="btn btn-ghost" onClick={markFullyPaid}>
                         Tüm yılları ödendi yap
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() => {
-                          if (confirm('Bu üyeyi listeden silmek istiyor musunuz?')) {
-                            onChange({
-                              ...data,
-                              updatedAt: nowIso(),
-                              members: data.members.filter((m) => m.idHash !== member.idHash),
-                            })
-                            setSelectedId(null)
-                            setMsg('Üye silindi.')
-                          }
-                        }}
-                      >
-                        Üyeyi sil
                       </button>
                     </div>
                   </div>
