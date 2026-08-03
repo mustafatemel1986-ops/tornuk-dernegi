@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-03T15:50:12.630Z",
+  "updatedAt": "2026-08-03T16:06:23.228Z",
   "subscriptions": [
     {
       "endpoint": "https://web.push.apple.com/QJ4XfE4evm4CgWikRs_1ClP--BybINdSR8MVIfDQzjd1p0Si4UbIiYoIMMukQjuHQC43UsGKm4CCQ8zVpsKdzCpdc6cJAnvjawzlyGftvQTaTmKLbQncwQLxvbO4T4VWbrBkQhJqd8XbdbnjdJXHjnZwKCt9ho8Heu3g8mmxsmE",
@@ -7,7 +7,7 @@
         "p256dh": "BIn4YRqyk28FmV4zLsmeeopbxKq-bOlDd2lAZMdjnvitbB9x_ifu21kAv6mw32WNxvj5dNcNr7_sjflf_iJVIFI",
         "auth": "VbfwXTODHmi6qtIFFWUMpQ"
       },
-      "createdAt": "2026-08-03T15:50:12.630Z"
+      "createdAt": "2026-08-03T16:06:23.228Z"
     },
     {
       "endpoint": "https://fcm.googleapis.com/fcm/send/egfX8K9VYEI:APA91bF0MFWRjvAf7J327lOBb3GIds8VJYR9Yf9KBTB_x7gsFflRjfT2Y-Labe7QeH7gG3rkPW9mvBIXwhFZ7wNcDZEGl1_J6n2CncPuVhR45qnvdJSy_wOHGF4UkLqJ-VjoNL21fnkR",
