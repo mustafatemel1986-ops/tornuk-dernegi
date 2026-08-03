@@ -1,6 +1,13 @@
 {
-  "updatedAt": "2026-08-03T14:42:44.567Z",
+  "updatedAt": "2026-08-03T14:43:39.322Z",
   "items": [
+    {
+      "id": "duyuru-2026-08-03-msdcagmy-denem",
+      "title": "Denem",
+      "summary": "Denem",
+      "body": "Dnenene",
+      "date": "2026-08-03"
+    },
     {
       "id": "duyuru-2026-08-03-msdc9adz-görkem",
       "title": "Görkem",
