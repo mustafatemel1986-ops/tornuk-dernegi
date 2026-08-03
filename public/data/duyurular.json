@@ -1,13 +1,6 @@
 {
-  "updatedAt": "2026-08-03T08:09:39.270Z",
+  "updatedAt": "2026-08-03T08:09:53.984Z",
   "items": [
-    {
-      "id": "duyuru-2026-07-31-test",
-      "title": "Test",
-      "summary": "bildirim test",
-      "body": "bildirim test",
-      "date": "2026-07-31"
-    },
     {
       "id": "duyuru-2026-07-genel-kurul",
       "title": "Olağan Genel Kurul Duyurusu",
