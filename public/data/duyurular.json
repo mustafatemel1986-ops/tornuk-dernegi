@@ -1,4 +1,12 @@
 {
-  "updatedAt": "2026-08-03T14:08:59.279Z",
-  "items": []
+  "updatedAt": "2026-08-03T14:42:44.567Z",
+  "items": [
+    {
+      "id": "duyuru-2026-08-03-msdc9adz-görkem",
+      "title": "Görkem",
+      "summary": "Görkme",
+      "body": "Görkem",
+      "date": "2026-08-03"
+    }
+  ]
 }
