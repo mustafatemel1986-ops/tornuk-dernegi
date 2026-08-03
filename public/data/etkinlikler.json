@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-03T08:17:36.510Z",
+  "updatedAt": "2026-08-03T08:17:53.343Z",
   "items": [
     {
       "id": "etk-2026-08-genel-kurul",
@@ -8,14 +8,6 @@
       "time": "14:00",
       "place": "Dernek Lokali",
       "description": "Faaliyet ve mali raporların okunması, yeni dönem yönetim seçimi."
-    },
-    {
-      "id": "etk-2026-08-iftar",
-      "title": "Üye buluşması / çay saati",
-      "date": "2026-08-22",
-      "time": "16:30",
-      "place": "Dernek Lokali",
-      "description": "Üyeler arası sohbet ve istişare toplantısı. Aileler de katılabilir."
     }
   ]
 }
