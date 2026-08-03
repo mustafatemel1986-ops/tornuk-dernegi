@@ -314,7 +314,7 @@ export function AdminApp() {
             type="button"
             className="btn btn-ghost"
             onClick={() => {
-              setAdminLoggedIn(false)
+              void setAdminLoggedIn(false)
               setAuthed(false)
             }}
           >

@@ -17,19 +17,15 @@ const ALLOWED_PATHS = new Set([
   'public/data/etkinlikler.json',
 ])
 
-const ALLOWED_ORIGINS = new Set([
-  'https://mustafatemel1986-ops.github.io',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-])
-
 function corsHeaders(origin) {
-  const allow = origin && ALLOWED_ORIGINS.has(origin) ? origin : 'https://mustafatemel1986-ops.github.io'
+  // PIN ile korunuyor; Origin kısıtı bazı PWA / ağlarda Failed to fetch yapıyordu
+  const allow = origin && origin !== 'null' ? origin : '*'
   return {
     'Access-Control-Allow-Origin': allow,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400',
+    Vary: 'Origin',
   }
 }
 
