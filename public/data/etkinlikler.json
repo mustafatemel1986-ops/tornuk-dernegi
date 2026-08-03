@@ -1,6 +1,14 @@
 {
-  "updatedAt": "2026-08-03T12:24:40.519Z",
+  "updatedAt": "2026-08-03T12:50:25.964Z",
   "items": [
+    {
+      "id": "etk-2026-08-03-msd88uuk-yenibir-etkinlik",
+      "title": "Yenibir etkinlik",
+      "date": "2026-08-03",
+      "time": "14:00",
+      "place": "Dernek Lokali",
+      "description": ""
+    },
     {
       "id": "etk-2026-08-03-msd7bqdj-kalmıyor-etkinlik",
       "title": "kalmıyor etkinlik",
