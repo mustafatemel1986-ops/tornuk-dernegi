@@ -13,7 +13,11 @@ dist-ssr
 dev-dist
 *.local
 .env
+.env.production
 .env.production.local
+worker/vapid-private.jwk.json
+worker/dist
+
 
 # Gerçek TC içeren üye listesi — yalnızca yerel tutun
 data/uyeler.csv

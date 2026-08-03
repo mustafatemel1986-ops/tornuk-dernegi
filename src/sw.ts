@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-/** tornuk-sw-v2026-08-03e — duyuru + etkinlik notify */
+/** tornuk-sw-v2026-08-03f — web push (closed app) */
 import {
   cleanupOutdatedCaches,
   createHandlerBoundToURL,
@@ -194,6 +194,52 @@ self.addEventListener('periodicsync', (event) => {
   if (syncEvent.tag === 'check-duyurular') {
     syncEvent.waitUntil(Promise.all([checkDuyurular(), checkEtkinlikler()]))
   }
+})
+
+self.addEventListener('push', (event) => {
+  event.waitUntil(
+    (async () => {
+      const base = self.registration.scope
+      let title = 'Törnük Derneği'
+      let body = 'Yeni bir güncelleme var.'
+      let url = `${base}?r=${Date.now()}`
+      let tag = `push-${Date.now()}`
+
+      try {
+        const data = event.data ? ((await event.data.json()) as {
+          title?: string
+          body?: string
+          url?: string
+          kind?: string
+          id?: string
+        }) : null
+        if (data?.title) title = data.title
+        if (data?.body) body = data.body
+        if (data?.url) url = data.url
+        if (data?.id) tag = `${data.kind || 'push'}-${data.id}`
+      } catch {
+        try {
+          const text = event.data?.text()
+          if (text) body = text
+        } catch {
+          // boş payload
+        }
+      }
+
+      await self.registration.showNotification(title, {
+        body,
+        icon: `${base}icons/icon-192.png`,
+        badge: `${base}icons/icon-192.png`,
+        tag,
+        renotify: true,
+        silent: false,
+        vibrate: [200, 80, 200, 80, 400],
+        data: { url },
+      } as NotificationOptions)
+
+      await notifyClientsPlaySound()
+    })(),
+  )
 })
 
 self.addEventListener('notificationclick', (event) => {

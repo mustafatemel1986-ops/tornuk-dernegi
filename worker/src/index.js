@@ -5,6 +5,8 @@
  * GitHub token burada gizli kalır; tarayıcıya hiç inmez.
  */
 
+import { sendOneWebPush } from './webPushSend.js'
+
 const SALT = 'tornuk-admin-v1'
 const OWNER = 'mustafatemel1986-ops'
 const REPO = 'tornuk-dernegi'
@@ -15,7 +17,12 @@ const ALLOWED_PATHS = new Set([
   'public/data/uyeler.json',
   'public/data/duyurular.json',
   'public/data/etkinlikler.json',
+  'public/data/push-subscriptions.json',
 ])
+
+const MAX_PUSH_SUBS = 400
+const PUSH_SUBS_MAIN = 'public/data/push-subscriptions.json'
+const PUSH_SUBS_LIVE = 'data/push-subscriptions.json'
 
 function corsHeaders(origin) {
   // PIN ile korunuyor; Origin kısıtı bazı PWA / ağlarda Failed to fetch yapıyordu
@@ -221,7 +228,12 @@ function assertSafeFiles(files) {
   }
 }
 
-const LIVE_FILES = new Set(['uyeler.json', 'duyurular.json', 'etkinlikler.json'])
+const LIVE_FILES = new Set([
+  'uyeler.json',
+  'duyurular.json',
+  'etkinlikler.json',
+  'push-subscriptions.json',
+])
 /** Yayın sonrası anında okuma — CDN beklemeden */
 const memoryLive = new Map()
 
@@ -353,6 +365,105 @@ async function handleNotify(request, env, origin) {
   }
 }
 
+function normalizeSubscription(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const endpoint = typeof raw.endpoint === 'string' ? raw.endpoint.trim() : ''
+  const p256dh = raw.keys && typeof raw.keys.p256dh === 'string' ? raw.keys.p256dh : ''
+  const auth = raw.keys && typeof raw.keys.auth === 'string' ? raw.keys.auth : ''
+  if (!endpoint.startsWith('https://') || !p256dh || !auth) return null
+  if (endpoint.length > 2048 || p256dh.length > 256 || auth.length > 128) return null
+  return { endpoint, keys: { p256dh, auth } }
+}
+
+async function readPushSubs(token) {
+  try {
+    const text = await readLiveFileFromGithub(token, 'push-subscriptions.json')
+    const data = JSON.parse(text)
+    return {
+      updatedAt: data.updatedAt || new Date().toISOString(),
+      subscriptions: Array.isArray(data.subscriptions) ? data.subscriptions : [],
+    }
+  } catch {
+    return { updatedAt: new Date().toISOString(), subscriptions: [] }
+  }
+}
+
+async function writePushSubs(token, data) {
+  const content = `${JSON.stringify(data, null, 2)}\n`
+  const message = `admin: push abonelik güncellendi (${new Date().toISOString().slice(0, 16).replace('T', ' ')})`
+  await commitFilesWithRetry(token, LIVE_BRANCH, [{ path: PUSH_SUBS_LIVE, content }], message)
+  await commitFilesWithRetry(token, MAIN_BRANCH, [{ path: PUSH_SUBS_MAIN, content }], message)
+}
+
+async function handlePushSubscribe(request, env, origin) {
+  if (!env.GITHUB_TOKEN) {
+    return json({ ok: false, error: 'Sunucu yapılandırması eksik.' }, 500, origin)
+  }
+
+  let body
+  try {
+    body = await request.json()
+  } catch {
+    return json({ ok: false, error: 'Geçersiz istek.' }, 400, origin)
+  }
+
+  const sub = normalizeSubscription(body?.subscription || body)
+  if (!sub) return json({ ok: false, error: 'Geçersiz abonelik.' }, 400, origin)
+
+  try {
+    const store = await readPushSubs(env.GITHUB_TOKEN)
+    const without = store.subscriptions.filter((s) => s.endpoint !== sub.endpoint)
+    without.unshift({
+      ...sub,
+      createdAt: new Date().toISOString(),
+    })
+    const next = {
+      updatedAt: new Date().toISOString(),
+      subscriptions: without.slice(0, MAX_PUSH_SUBS),
+    }
+    await writePushSubs(env.GITHUB_TOKEN, next)
+    return json({ ok: true, count: next.subscriptions.length }, 200, origin)
+  } catch (error) {
+    return json(
+      { ok: false, error: error instanceof Error ? error.message : 'Kayıt başarısız' },
+      502,
+      origin,
+    )
+  }
+}
+
+async function handlePushUnsubscribe(request, env, origin) {
+  if (!env.GITHUB_TOKEN) {
+    return json({ ok: false, error: 'Sunucu yapılandırması eksik.' }, 500, origin)
+  }
+
+  let body
+  try {
+    body = await request.json()
+  } catch {
+    return json({ ok: false, error: 'Geçersiz istek.' }, 400, origin)
+  }
+
+  const endpoint = typeof body.endpoint === 'string' ? body.endpoint.trim() : ''
+  if (!endpoint) return json({ ok: false, error: 'endpoint gerekli' }, 400, origin)
+
+  try {
+    const store = await readPushSubs(env.GITHUB_TOKEN)
+    const next = {
+      updatedAt: new Date().toISOString(),
+      subscriptions: store.subscriptions.filter((s) => s.endpoint !== endpoint),
+    }
+    await writePushSubs(env.GITHUB_TOKEN, next)
+    return json({ ok: true, count: next.subscriptions.length }, 200, origin)
+  } catch (error) {
+    return json(
+      { ok: false, error: error instanceof Error ? error.message : 'Silme başarısız' },
+      502,
+      origin,
+    )
+  }
+}
+
 async function handlePublish(request, env, origin, ctx) {
   if (!env.GITHUB_TOKEN || !env.ADMIN_PIN_HASH) {
     return json({ ok: false, error: 'Sunucu yapılandırması eksik.' }, 500, origin)
@@ -443,10 +554,130 @@ export default {
       return handleNotify(request, env, origin)
     }
 
+    if (request.method === 'POST' && url.pathname === '/push/subscribe') {
+      return handlePushSubscribe(request, env, origin)
+    }
+
+    if (request.method === 'POST' && url.pathname === '/push/unsubscribe') {
+      return handlePushUnsubscribe(request, env, origin)
+    }
+
     if (request.method === 'GET' && url.pathname === '/health') {
       return json({ ok: true, service: 'tornuk-publish' }, 200, origin)
     }
 
     return json({ ok: false, error: 'Not found' }, 404, origin)
   },
+
+  /** Dakikada bir: yeni duyuru/etkinlik varsa kapalı uygulamalara Web Push */
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(runPushPoll(env))
+  },
+}
+
+async function runPushPoll(env) {
+  if (!env.GITHUB_TOKEN || !env.VAPID_PRIVATE_JWK) return
+
+  const [duyuruText, etkinlikText, subsStore, state] = await Promise.all([
+    readLiveFileFromGithub(env.GITHUB_TOKEN, 'duyurular.json').catch(() => null),
+    readLiveFileFromGithub(env.GITHUB_TOKEN, 'etkinlikler.json').catch(() => null),
+    readPushSubs(env.GITHUB_TOKEN),
+    readPushState(env.GITHUB_TOKEN),
+  ])
+
+  if (!subsStore.subscriptions.length) return
+
+  let nextState = { ...state }
+  let changed = false
+
+  if (duyuruText) {
+    const data = JSON.parse(duyuruText)
+    const latest = data.items?.[0]
+    if (latest?.id) {
+      if (!state.lastDuyuruId) {
+        nextState.lastDuyuruId = latest.id
+        changed = true
+      } else if (state.lastDuyuruId !== latest.id) {
+        await broadcastWebPush(env, subsStore.subscriptions, {
+          title: latest.title,
+          body: latest.summary || latest.title,
+          kind: 'duyuru',
+          id: latest.id,
+          url: `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=duyurular&r=${Date.now()}&duyuru=${encodeURIComponent(latest.id)}`,
+        })
+        nextState.lastDuyuruId = latest.id
+        changed = true
+      }
+    }
+  }
+
+  if (etkinlikText) {
+    const data = JSON.parse(etkinlikText)
+    const latest = data.items?.[0]
+    if (latest?.id) {
+      if (!state.lastEtkinlikId) {
+        nextState.lastEtkinlikId = latest.id
+        changed = true
+      } else if (state.lastEtkinlikId !== latest.id) {
+        const body =
+          latest.description ||
+          [latest.date, latest.time, latest.place].filter(Boolean).join(' · ') ||
+          latest.title
+        await broadcastWebPush(env, subsStore.subscriptions, {
+          title: latest.title,
+          body,
+          kind: 'etkinlik',
+          id: latest.id,
+          url: `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=etkinlikler&r=${Date.now()}&etkinlik=${encodeURIComponent(latest.id)}`,
+        })
+        nextState.lastEtkinlikId = latest.id
+        changed = true
+      }
+    }
+  }
+
+  if (changed) {
+    nextState.updatedAt = new Date().toISOString()
+    await writePushState(env.GITHUB_TOKEN, nextState)
+  }
+}
+
+async function broadcastWebPush(env, subscriptions, payload) {
+  const dead = []
+  for (const sub of subscriptions) {
+    try {
+      const result = await sendOneWebPush(env, sub, payload)
+      if (result.status === 404 || result.status === 410) dead.push(sub.endpoint)
+    } catch {
+      // tek abonelik hatası tümünü durdurmasın
+    }
+  }
+  if (dead.length) {
+    const next = {
+      updatedAt: new Date().toISOString(),
+      subscriptions: subscriptions.filter((s) => !dead.includes(s.endpoint)),
+    }
+    await writePushSubs(env.GITHUB_TOKEN, next)
+  }
+}
+
+async function readPushState(token) {
+  try {
+    const text = await readLiveFileFromGithub(token, 'push-state.json')
+    return JSON.parse(text)
+  } catch {
+    return { lastDuyuruId: null, lastEtkinlikId: null }
+  }
+}
+
+async function writePushState(token, data) {
+  const content = `${JSON.stringify(data, null, 2)}\n`
+  const message = `admin: push state (${new Date().toISOString().slice(0, 16).replace('T', ' ')})`
+  await commitFilesWithRetry(token, LIVE_BRANCH, [{ path: 'data/push-state.json', content }], message)
+  await commitFilesWithRetry(
+    token,
+    MAIN_BRANCH,
+    [{ path: 'public/data/push-state.json', content }],
+    message,
+  )
 }

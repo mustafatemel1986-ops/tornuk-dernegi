@@ -92,6 +92,14 @@ function MemberApp() {
     return () => window.removeEventListener(NOTIFY_PREF_EVENT, syncPref)
   }, [])
 
+  // Bildirim açıkken Web Push aboneliğini yenile (kapalıyken bildirim)
+  useEffect(() => {
+    if (!notifyReady) return
+    void import('./lib/webPush')
+      .then((m) => m.subscribeWebPush())
+      .catch(() => undefined)
+  }, [notifyReady])
+
   // Uygulama açıkken anlık bildirim: ntfy EventSource (CDN beklemeden)
   useEffect(() => {
     if (!notifyReady) return

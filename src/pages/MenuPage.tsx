@@ -9,6 +9,7 @@ import {
   sendTestNotification,
   setNotifyPreference,
 } from '../lib/notifications'
+import { subscribeWebPush, unsubscribeWebPush } from '../lib/webPush'
 import type { AssociationData } from '../types'
 
 type MenuSection = 'ozet' | 'bilgi' | 'belgeler' | 'bagis' | 'sss'
@@ -38,6 +39,7 @@ export function MenuPage() {
     if (notifyOn) {
       setNotifyPreference(false)
       setNotifyOn(false)
+      void unsubscribeWebPush()
       setNotifyMsg('Bildirimler kapatıldı.')
       return
     }
@@ -52,12 +54,26 @@ export function MenuPage() {
     setNotifyOn(true)
     await registerPeriodicDuyuruCheck()
     await askServiceWorkerToCheck()
-    setNotifyMsg('Bildirimler açık. Yeni duyurularda size uyarı gelecek.')
+    try {
+      await subscribeWebPush()
+      setNotifyMsg(
+        'Bildirimler açık. Uygulama kapalıyken de duyuru ve etkinlik bildirimi gelebilir (ana ekrana ekli PWA).',
+      )
+    } catch {
+      setNotifyMsg(
+        'Bildirimler açık (uygulama açıkken). Kapalıyken bildirim için mobil internette Menüden tekrar açın.',
+      )
+    }
   }
 
   async function testNotify() {
     try {
       await sendTestNotification()
+      try {
+        await subscribeWebPush()
+      } catch {
+        // yedek
+      }
       setNotifyMsg('Test bildirimi gönderildi — ses duyulduysa hazır.')
       setNotifyOn(true)
       setNotifyPreference(true)

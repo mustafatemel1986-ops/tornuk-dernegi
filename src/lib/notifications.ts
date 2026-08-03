@@ -1,4 +1,5 @@
 import { playNotifySound } from './notifySound'
+import { subscribeWebPush } from './webPush'
 
 const STORAGE_KEY = 'tornuk-last-duyuru-id'
 const ETKINLIK_STORAGE_KEY = 'tornuk-last-etkinlik-id'
@@ -64,6 +65,11 @@ export async function enableNotificationsAfterInstall(): Promise<'granted' | 'de
     clearAskNotifyPermission()
     await registerPeriodicDuyuruCheck()
     await askServiceWorkerToCheck()
+    try {
+      await subscribeWebPush()
+    } catch {
+      // Worker engelli ağlarda abonelik sonra denenir
+    }
     try {
       await showDuyuruNotification({
         id: `welcome-${Date.now()}`,
