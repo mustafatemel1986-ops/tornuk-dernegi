@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { isAdminLoggedIn, setAdminLoggedIn } from '../lib/adminAuth'
 import { loadGithubSettings, pushAdminData, saveGithubSettings } from '../lib/githubSave'
 import {
+  clearLiveData,
   getLiveAnnouncements,
   getLiveEvents,
   getLiveMembers,
+  pickNewerData,
   setLiveAnnouncements,
   setLiveEvents,
   setLiveMembers,
@@ -22,12 +24,13 @@ type AdminTab = 'aidat' | 'duyurular' | 'etkinlikler' | 'indirenler' | 'kaydet'
 
 export function AdminApp() {
   const [authed, setAuthed] = useState(() => isAdminLoggedIn())
-  const [tab, setTab] = useState<AdminTab>('aidat')
+  const [tab, setTab] = useState<AdminTab>('duyurular')
   const [members, setMembers] = useState<MembershipData | null>(null)
   const [announcements, setAnnouncements] = useState<AnnouncementsData | null>(null)
   const [events, setEvents] = useState<EventsData | null>(null)
   const [dirty, setDirty] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [draftNote, setDraftNote] = useState<string | null>(null)
 
   const [reloadToken, setReloadToken] = useState(0)
 
@@ -38,9 +41,7 @@ export function AdminApp() {
     async function load() {
       try {
         setLoadError(null)
-        const liveMembers = getLiveMembers()
-        const liveDuyuru = getLiveAnnouncements()
-        const liveEvents = getLiveEvents()
+        setDraftNote(null)
 
         const base = import.meta.env.BASE_URL
         const [mRes, dRes, eRes] = await Promise.all([
@@ -49,13 +50,28 @@ export function AdminApp() {
           fetch(`${base}data/etkinlikler.json?t=${Date.now()}`, { cache: 'no-store' }),
         ])
         if (!mRes.ok || !dRes.ok || !eRes.ok) throw new Error('Veriler yüklenemedi')
-        const [m, d, e] = await Promise.all([mRes.json(), dRes.json(), eRes.json()])
+        const [m, d, e] = await Promise.all([
+          mRes.json() as Promise<MembershipData>,
+          dRes.json() as Promise<AnnouncementsData>,
+          eRes.json() as Promise<EventsData>,
+        ])
         if (cancelled) return
 
-        setMembers(liveMembers ?? m)
-        setAnnouncements(liveDuyuru ?? d)
-        setEvents(liveEvents ?? e)
-        setDirty(Boolean(liveMembers || liveDuyuru || liveEvents))
+        const membersPick = pickNewerData(getLiveMembers(), m)
+        const duyuruPick = pickNewerData(getLiveAnnouncements(), d)
+        const eventsPick = pickNewerData(getLiveEvents(), e)
+
+        setMembers(membersPick.data)
+        setAnnouncements(duyuruPick.data)
+        setEvents(eventsPick.data)
+
+        const usingDraft = membersPick.fromLive || duyuruPick.fromLive || eventsPick.fromLive
+        setDirty(usingDraft)
+        if (usingDraft) {
+          setDraftNote(
+            'Bu tarayıcıda yayınlanmamış taslak var. Üyelerin görmesi için Duyurular → “Ekle ve yayınla” veya Kaydet ile yayınlayın. Taslağı silmek için “Sunucudan yükle”.',
+          )
+        }
       } catch {
         if (!cancelled) setLoadError('Yönetim verileri yüklenemedi.')
       }
@@ -97,8 +113,8 @@ export function AdminApp() {
         <div>
           <h1>Yönetim paneli</h1>
           <p className="hint">
-            Törnük Derneği — değişiklikler bu cihazda hemen geçerli olur; diğer üyeler için Kaydet
-            gerekir.
+            Üyelerin telefonunda görünmesi için duyuruyu <strong>Ekle ve yayınla</strong> ile
+            GitHub’a basmanız gerekir. Sadece eklemek yetmez.
           </p>
         </div>
         <div className="admin-actions">
@@ -126,6 +142,8 @@ export function AdminApp() {
           </button>
         </div>
       </div>
+
+      {draftNote && <p className="admin-msg err">{draftNote}</p>}
 
       <div className="admin-tabs">
         {(
@@ -168,6 +186,11 @@ export function AdminApp() {
           }}
           onPublish={async (next) => {
             const settings = loadGithubSettings()
+            if (!settings.token) {
+              throw new Error(
+                'Access Token yok. Önce Kaydet sekmesine gidin, token yapıştırıp bir kez kaydedin.',
+              )
+            }
             saveGithubSettings(settings)
             await pushAdminData(settings, [
               { path: 'public/data/uyeler.json', data: members },
@@ -176,7 +199,10 @@ export function AdminApp() {
             ])
             setAnnouncements(next)
             setLiveAnnouncements(next)
+            setLiveMembers(members)
+            setLiveEvents(events)
             setDirty(false)
+            setDraftNote(null)
           }}
         />
       )}
@@ -197,11 +223,17 @@ export function AdminApp() {
           announcements={announcements}
           events={events}
           dirty={dirty}
-          onSaved={() => setDirty(false)}
+          onSaved={() => {
+            setDirty(false)
+            setDraftNote(null)
+          }}
           onReloadFromServer={() => {
+            clearLiveData()
             setMembers(null)
             setAnnouncements(null)
             setEvents(null)
+            setDirty(false)
+            setDraftNote(null)
             setReloadToken((n) => n + 1)
           }}
         />

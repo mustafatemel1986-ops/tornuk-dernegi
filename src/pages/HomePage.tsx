@@ -2,11 +2,7 @@ import { useEffect, useState } from 'react'
 import { BrandMark } from '../components/BrandMark'
 import { InstallButton } from '../components/InstallButton'
 import { formatDate } from '../lib/format'
-import {
-  DATA_UPDATED_EVENT,
-  loadAnnouncementsData,
-  loadEventsData,
-} from '../lib/liveData'
+import { loadAnnouncementsData, loadEventsData } from '../lib/liveData'
 import type { Announcement, AssociationData, EventItem, TabId } from '../types'
 
 export function HomePage({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
@@ -37,14 +33,16 @@ export function HomePage({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
         // sessiz
       }
     }
-    function onUpdate() {
-      void load()
-    }
     void load()
-    window.addEventListener(DATA_UPDATED_EVENT, onUpdate)
+    function onVisible() {
+      if (document.visibilityState === 'visible') void load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', load)
     return () => {
       cancelled = true
-      window.removeEventListener(DATA_UPDATED_EVENT, onUpdate)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', load)
     }
   }, [])
 

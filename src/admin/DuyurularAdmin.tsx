@@ -86,7 +86,9 @@ export function DuyurularAdmin({
       onChange(next)
       await onPublish(next)
       setDraft({ title: '', summary: '', body: '', date: todayIso() })
-      setMsg('Yayınlandı. Bildirim açık üyeler uygulamayı açınca / açıkken uyarı + ses alır.')
+      setMsg(
+        'Canlı siteye yayınlandı. Telefonda Duyurular sekmesini açın veya uygulamayı yeniden açın — birkaç saniye içinde görünür.',
+      )
     } catch (error) {
       setErr(error instanceof Error ? error.message : 'Yayın başarısız.')
     } finally {

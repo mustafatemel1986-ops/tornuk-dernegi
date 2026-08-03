@@ -19,6 +19,7 @@ function write(key: string, data: unknown) {
   window.dispatchEvent(new Event(DATA_UPDATED_EVENT))
 }
 
+/** Yalnızca admin paneli taslağı — üye ekranları bunu okumaz. */
 export function getLiveMembers(): MembershipData | null {
   return read<MembershipData>(MEMBERS_KEY)
 }
@@ -58,19 +59,34 @@ async function fetchJson<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
-/** Önce bu cihazdaki admin taslağı, yoksa sunucu dosyası. */
+/**
+ * Üye ekranları her zaman canlı siteden okur.
+ * (Eski davranış localStorage taslağını öncelikliyordu; telefon senkronu bozuluyordu.)
+ */
 export async function loadMembershipData(): Promise<MembershipData> {
-  return getLiveMembers() ?? (await fetchJson<MembershipData>('data/uyeler.json'))
+  return fetchJson<MembershipData>('data/uyeler.json')
 }
 
 export async function loadAnnouncementsData(): Promise<AnnouncementsData> {
-  return getLiveAnnouncements() ?? (await fetchJson<AnnouncementsData>('data/duyurular.json'))
+  return fetchJson<AnnouncementsData>('data/duyurular.json')
 }
 
 export async function loadEventsData(): Promise<EventsData> {
-  return getLiveEvents() ?? (await fetchJson<EventsData>('data/etkinlikler.json'))
+  return fetchJson<EventsData>('data/etkinlikler.json')
 }
 
 export function hasLiveDraft(): boolean {
   return Boolean(getLiveMembers() || getLiveAnnouncements() || getLiveEvents())
+}
+
+/** Hangisi daha yeni? Admin yüklemede bayat taslağı ayıklamak için. */
+export function pickNewerData<T extends { updatedAt?: string }>(
+  live: T | null,
+  server: T,
+): { data: T; fromLive: boolean } {
+  if (!live) return { data: server, fromLive: false }
+  const liveT = Date.parse(live.updatedAt || '') || 0
+  const serverT = Date.parse(server.updatedAt || '') || 0
+  if (liveT > serverT) return { data: live, fromLive: true }
+  return { data: server, fromLive: false }
 }

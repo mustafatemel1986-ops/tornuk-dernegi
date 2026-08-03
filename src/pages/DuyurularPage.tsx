@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { formatDate } from '../lib/format'
-import { DATA_UPDATED_EVENT, loadAnnouncementsData } from '../lib/liveData'
+import { loadAnnouncementsData } from '../lib/liveData'
 import type { Announcement, AnnouncementsData } from '../types'
 
 export function DuyurularPage() {
@@ -10,25 +10,37 @@ export function DuyurularPage() {
 
   useEffect(() => {
     let cancelled = false
+
     async function load() {
       try {
         const json = await loadAnnouncementsData()
-        if (!cancelled) {
-          setData(json)
-          if (json.items[0]) setOpenId((prev) => prev ?? json.items[0].id)
-        }
+        if (cancelled) return
+        setData(json)
+        setError(null)
+        if (json.items[0]) setOpenId((prev) => prev ?? json.items[0].id)
       } catch {
         if (!cancelled) setError('Duyurular yüklenemedi.')
       }
     }
-    function onUpdate() {
+
+    void load()
+
+    function onVisible() {
+      if (document.visibilityState === 'visible') void load()
+    }
+    function onFocus() {
       void load()
     }
-    void load()
-    window.addEventListener(DATA_UPDATED_EVENT, onUpdate)
+
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onFocus)
+    const timer = window.setInterval(() => void load(), 20 * 1000)
+
     return () => {
       cancelled = true
-      window.removeEventListener(DATA_UPDATED_EVENT, onUpdate)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
+      window.clearInterval(timer)
     }
   }, [])
 
