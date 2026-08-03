@@ -264,16 +264,9 @@ async function handlePublish(request, env, origin, ctx) {
   }))
 
   try {
-    // Önce canlı dal (üyeler bunu görür) — cevap hızlı dönsün
+    // İkisini de bekle — main arka planda kalırsa dallar ayrışıyor
     await commitFilesWithRetry(env.GITHUB_TOKEN, LIVE_BRANCH, liveFiles, message)
-    // main yedeği arka planda (cevap bekletmez)
-    if (typeof ctx !== 'undefined' && ctx?.waitUntil) {
-      ctx.waitUntil(
-        commitFilesWithRetry(env.GITHUB_TOKEN, MAIN_BRANCH, mainFiles, message).catch(() => {}),
-      )
-    } else {
-      await commitFilesWithRetry(env.GITHUB_TOKEN, MAIN_BRANCH, mainFiles, message)
-    }
+    await commitFilesWithRetry(env.GITHUB_TOKEN, MAIN_BRANCH, mainFiles, message)
     return json({ ok: true }, 200, origin)
   } catch (error) {
     return json(

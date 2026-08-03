@@ -12,7 +12,9 @@
     "generate-icons": "node scripts/generate-icons.mjs",
     "predeploy": "npm run build && node scripts/sync-live-data.mjs",
     "deploy": "gh-pages -d dist",
-    "sync-data": "node scripts/sync-live-data.mjs"
+    "sync-data": "node scripts/sync-live-data.mjs",
+    "audit-data": "node scripts/repair-data.mjs audit",
+    "repair-data": "node scripts/repair-data.mjs fix"
   },
   "dependencies": {
     "react": "^19.2.8",

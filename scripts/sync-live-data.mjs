@@ -1,36 +1,52 @@
-﻿import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+﻿/**
+ * Deploy öncesi: gh-pages'teki canlı JSON'u dist + public'e çeker.
+ * Böylece site deploy'u admin verilerini ezmez.
+ *
+ * Ayrıca dernek.json gibi statik dosyaları da senkron tutar.
+ */
 import { execFileSync } from 'node:child_process'
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
 
+const OWNER = 'mustafatemel1986-ops'
+const REPO = 'tornuk-dernegi'
 const FILES = [
-  ['uyeler.json', 'data/uyeler.json', 'public/data/uyeler.json'],
-  ['duyurular.json', 'data/duyurular.json', 'public/data/duyurular.json'],
-  ['etkinlikler.json', 'data/etkinlikler.json', 'public/data/etkinlikler.json'],
-  ['admin.json', 'data/admin.json', 'public/data/admin.json'],
-  ['bridge.json', 'data/bridge.json', 'public/data/bridge.json'],
+  'uyeler.json',
+  'duyurular.json',
+  'etkinlikler.json',
+  'admin.json',
+  'bridge.json',
+  'dernek.json',
 ]
 
 const distData = join(process.cwd(), 'dist', 'data')
 const publicData = join(process.cwd(), 'public', 'data')
 if (!existsSync(distData)) mkdirSync(distData, { recursive: true })
 
-function readViaGh(path, branch) {
+function readLive(name) {
   const b64 = execFileSync(
     'gh',
-    ['api', `repos/mustafatemel1986-ops/tornuk-dernegi/contents/${path}?ref=${branch}`, '--jq', '.content'],
+    ['api', `repos/${OWNER}/${REPO}/contents/data/${name}?ref=gh-pages`, '--jq', '.content'],
     { encoding: 'utf8' },
   ).replace(/\s+/g, '')
   return Buffer.from(b64, 'base64').toString('utf8')
 }
 
-for (const [name, livePath] of FILES) {
+let ok = 0
+for (const name of FILES) {
   try {
-    const text = readViaGh(livePath, 'gh-pages')
+    const text = readLive(name)
     const out = text.endsWith('\n') ? text : `${text}\n`
     writeFileSync(join(distData, name), out)
     writeFileSync(join(publicData, name), out)
     console.log(`synced ${name}`)
+    ok++
   } catch (error) {
     console.warn(`skip ${name}:`, error instanceof Error ? error.message : error)
   }
+}
+
+if (ok < 3) {
+  console.error('Kritik: canlı veri senkronu başarısız. Deploy iptal.')
+  process.exit(1)
 }
