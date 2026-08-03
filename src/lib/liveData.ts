@@ -5,10 +5,7 @@ const DUYURU_KEY = 'tornuk-live-duyurular'
 const ETKINLIK_KEY = 'tornuk-live-etkinlikler'
 export const DATA_UPDATED_EVENT = 'tornuk-data-updated'
 
-/**
- * Canlı veri kaynağı: GitHub raw (Pages CDN gecikmesini baypas eder).
- * Admin yayınları gh-pages’e yazılır; raw hemen güncellenir.
- */
+/** Anında güncellenen kaynak (Pages CDN gecikmesiz). */
 export const LIVE_DATA_BASE =
   'https://raw.githubusercontent.com/mustafatemel1986-ops/tornuk-dernegi/gh-pages/data'
 
@@ -58,21 +55,38 @@ export function clearLiveData() {
   window.dispatchEvent(new Event(DATA_UPDATED_EVENT))
 }
 
-async function fetchJson<T>(file: string): Promise<T> {
-  const url = `${LIVE_DATA_BASE}/${file}?t=${Date.now()}&r=${Math.random()}`
+async function fetchOne<T>(url: string): Promise<T> {
   const res = await fetch(url, {
     cache: 'no-store',
+    mode: 'cors',
     headers: {
+      Accept: 'application/json',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       Pragma: 'no-cache',
     },
   })
-  if (!res.ok) throw new Error(`${file} yüklenemedi (${res.status})`)
+  if (!res.ok) throw new Error(`${url} → ${res.status}`)
   return res.json() as Promise<T>
 }
 
 /**
- * Üye ekranları her zaman GitHub raw’dan okur (CDN/SW önbelleği yok).
+ * Önce GitHub raw (taze), olmazsa site data/ (Pages).
+ * İkisi de başarısızsa hata.
+ */
+async function fetchJson<T>(file: string): Promise<T> {
+  const bust = `t=${Date.now()}&r=${Math.random()}`
+  const rawUrl = `${LIVE_DATA_BASE}/${file}?${bust}`
+  const pagesUrl = `${import.meta.env.BASE_URL}data/${file}?${bust}`
+
+  try {
+    return await fetchOne<T>(rawUrl)
+  } catch {
+    return fetchOne<T>(pagesUrl)
+  }
+}
+
+/**
+ * Üye ekranları canlı veriyi okur (raw → Pages yedek).
  */
 export async function loadMembershipData(): Promise<MembershipData> {
   return fetchJson<MembershipData>('uyeler.json')

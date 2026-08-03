@@ -15,9 +15,12 @@ void self.skipWaiting()
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-// Duyuru/aidat JSON asla önbellekten okunmasın
+// Duyuru/aidat JSON — yalnızca aynı origin; raw.githubusercontent.com’u yakalama
 registerRoute(
-  ({ url }) => url.pathname.includes('/data/') && url.pathname.endsWith('.json'),
+  ({ url }) =>
+    url.origin === self.location.origin &&
+    url.pathname.includes('/data/') &&
+    url.pathname.endsWith('.json'),
   new NetworkOnly({
     plugins: [
       {

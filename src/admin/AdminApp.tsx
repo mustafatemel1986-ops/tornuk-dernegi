@@ -58,16 +58,29 @@ export function AdminApp() {
         setLoadError(null)
         setDraftNote(null)
 
-        const [mRes, dRes, eRes] = await Promise.all([
-          fetch(`${LIVE_DATA_BASE}/uyeler.json?t=${Date.now()}`, { cache: 'no-store' }),
-          fetch(`${LIVE_DATA_BASE}/duyurular.json?t=${Date.now()}`, { cache: 'no-store' }),
-          fetch(`${LIVE_DATA_BASE}/etkinlikler.json?t=${Date.now()}`, { cache: 'no-store' }),
-        ])
-        if (!mRes.ok || !dRes.ok || !eRes.ok) throw new Error('Veriler yüklenemedi')
+        // Admin de aynı kaynak: raw önce, Pages yedek
+        const bust = `t=${Date.now()}`
+        async function loadFile<T>(file: string): Promise<T> {
+          try {
+            const res = await fetch(`${LIVE_DATA_BASE}/${file}?${bust}`, {
+              cache: 'no-store',
+              mode: 'cors',
+            })
+            if (!res.ok) throw new Error('raw fail')
+            return (await res.json()) as T
+          } catch {
+            const res = await fetch(`${import.meta.env.BASE_URL}data/${file}?${bust}`, {
+              cache: 'no-store',
+            })
+            if (!res.ok) throw new Error(`${file} yüklenemedi`)
+            return (await res.json()) as T
+          }
+        }
+
         const [m, d, e] = await Promise.all([
-          mRes.json() as Promise<MembershipData>,
-          dRes.json() as Promise<AnnouncementsData>,
-          eRes.json() as Promise<EventsData>,
+          loadFile<MembershipData>('uyeler.json'),
+          loadFile<AnnouncementsData>('duyurular.json'),
+          loadFile<EventsData>('etkinlikler.json'),
         ])
         if (cancelled) return
 
