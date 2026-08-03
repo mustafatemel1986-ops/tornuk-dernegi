@@ -123,7 +123,7 @@ export function AdminApp() {
     publishingLock.current = true
 
     try {
-      await pushAdminData(pin, () => {
+      const via = await pushAdminData(pin, () => {
         const snap = dataRef.current
         if (!snap.members || !snap.announcements || !snap.events) {
           throw new Error('Veriler henüz yüklenmedi.')
@@ -164,6 +164,7 @@ export function AdminApp() {
       setDirty(false)
       setDraftNote(null)
       setPublishNote(successText || 'Canlıya yayınlandı.')
+      return via
     } finally {
       publishingLock.current = false
       setPublishing(false)
@@ -190,7 +191,7 @@ export function AdminApp() {
         window.clearTimeout(publishTimer.current)
         publishTimer.current = null
       }
-      await publishNow(successText, onlyPaths)
+      return publishNow(successText, onlyPaths)
     },
     [publishNow],
   )
@@ -333,7 +334,7 @@ export function AdminApp() {
             setLiveAnnouncements(next)
             setDirty(true)
             try {
-              await flushPublish(successText, ['public/data/duyurular.json'])
+              return await flushPublish(successText, ['public/data/duyurular.json'])
             } catch (error) {
               if (prev) {
                 dataRef.current = { ...dataRef.current, announcements: prev }
@@ -358,7 +359,7 @@ export function AdminApp() {
             setLiveEvents(next)
             setDirty(true)
             try {
-              await flushPublish(successText, ['public/data/etkinlikler.json'])
+              return await flushPublish(successText, ['public/data/etkinlikler.json'])
             } catch (error) {
               if (prev) {
                 dataRef.current = { ...dataRef.current, events: prev }

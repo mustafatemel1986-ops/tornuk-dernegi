@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { publishDuyuruToNtfy } from '../lib/ntfyPush'
+import { publishNotifyToNtfy } from '../lib/ntfyPush'
 import type { Announcement, AnnouncementsData } from '../types'
 
 function todayIso() {
@@ -23,7 +23,10 @@ export function DuyurularAdmin({
 }: {
   data: AnnouncementsData
   onChange: (next: AnnouncementsData) => void
-  onPublishNow: (next: AnnouncementsData, successText: string) => Promise<void>
+  onPublishNow: (
+    next: AnnouncementsData,
+    successText: string,
+  ) => Promise<'direct' | 'worker' | void>
 }) {
   const [draft, setDraft] = useState({
     title: '',
@@ -35,14 +38,17 @@ export function DuyurularAdmin({
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  async function publishImmediate(next: AnnouncementsData, successText: string): Promise<boolean> {
+  async function publishImmediate(
+    next: AnnouncementsData,
+    successText: string,
+  ): Promise<'direct' | 'worker' | false> {
     setBusy(true)
     setMsg(null)
     setErr(null)
     try {
-      await onPublishNow(next, successText)
+      const via = (await onPublishNow(next, successText)) || 'direct'
       setMsg(successText)
-      return true
+      return via
     } catch (error) {
       setErr(error instanceof Error ? error.message : 'Yayın başarısız.')
       return false
@@ -72,13 +78,13 @@ export function DuyurularAdmin({
       updatedAt: new Date().toISOString(),
       items: [item, ...data.items],
     }
-    const ok = await publishImmediate(next, 'Duyuru eklendi ve canlıya yayınlandı.')
-    if (!ok) return
+    const via = await publishImmediate(next, 'Duyuru eklendi ve canlıya yayınlandı.')
+    if (!via) return
 
     setDraft({ title: '', summary: '', body: '', date: todayIso() })
 
-    // Bildirim arka planda — CDN beklemesi UI’yi kilitlemesin
-    void publishDuyuruToNtfy({
+    void publishNotifyToNtfy({
+      kind: 'duyuru',
       id: item.id,
       title: item.title,
       summary: item.summary,
@@ -86,7 +92,7 @@ export function DuyurularAdmin({
       .then(() => setMsg('Duyuru yayınlandı. Üyelere anlık bildirim gönderildi.'))
       .catch(() =>
         setMsg(
-          'Duyuru yayınlandı. Anlık bildirim gönderilemedi; üyeler uygulamayı açınca görür.',
+          'Duyuru yayınlandı. Anlık kanal bu ağda kapalı; üyeler uygulama açıksa kısa sürede bildirilir.',
         ),
       )
   }

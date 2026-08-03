@@ -38,19 +38,19 @@ async function pushViaWorker(pin: string, files: AdminDataFile[]) {
   }
 }
 
-async function pushUnlocked(pin: string, files: AdminDataFile[]) {
+async function pushUnlocked(pin: string, files: AdminDataFile[]): Promise<'direct' | 'worker'> {
   const token = getBridgeGithubToken()
 
   // Telefonda Worker engelli olabilir — token varsa önce doğrudan GitHub
   if (token) {
     try {
       await pushAdminDataDirect(token, files)
-      return
+      return 'direct'
     } catch (error) {
       // doğrudan yazma başarısızsa Worker dene
       try {
         await pushViaWorker(pin, files)
-        return
+        return 'worker'
       } catch (workerError) {
         const a = error instanceof Error ? error.message : 'GitHub yazılamadı'
         const b = workerError instanceof Error ? workerError.message : 'Worker başarısız'
@@ -61,6 +61,7 @@ async function pushUnlocked(pin: string, files: AdminDataFile[]) {
 
   try {
     await pushViaWorker(pin, files)
+    return 'worker'
   } catch (error) {
     if (!isNetworkFetchError(error)) throw error
     throw new Error(
@@ -72,7 +73,7 @@ async function pushUnlocked(pin: string, files: AdminDataFile[]) {
 export async function pushAdminData(
   pin: string,
   filesOrFactory: AdminDataFile[] | (() => AdminDataFile[]),
-) {
+): Promise<'direct' | 'worker'> {
   if (!pin.trim()) {
     throw new Error('Oturum süresi dolmuş. Yönetim paneline tekrar giriş yapın.')
   }
@@ -84,5 +85,5 @@ export async function pushAdminData(
     () => undefined,
     () => undefined,
   )
-  await run
+  return run
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { publishNotifyToNtfy } from '../lib/ntfyPush'
 import type { EventItem, EventsData } from '../types'
 
 function todayIso() {
@@ -22,7 +23,7 @@ export function EtkinliklerAdmin({
 }: {
   data: EventsData
   onChange: (next: EventsData) => void
-  onPublishNow: (next: EventsData, successText: string) => Promise<void>
+  onPublishNow: (next: EventsData, successText: string) => Promise<'direct' | 'worker' | void>
 }) {
   const [draft, setDraft] = useState({
     title: '',
@@ -35,14 +36,17 @@ export function EtkinliklerAdmin({
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  async function publishImmediate(next: EventsData, successText: string) {
+  async function publishImmediate(
+    next: EventsData,
+    successText: string,
+  ): Promise<'direct' | 'worker' | false> {
     setBusy(true)
     setMsg(null)
     setErr(null)
     try {
-      await onPublishNow(next, successText)
+      const via = (await onPublishNow(next, successText)) || 'direct'
       setMsg(successText)
-      return true
+      return via
     } catch (error) {
       setErr(error instanceof Error ? error.message : 'Yayın başarısız.')
       return false
@@ -69,20 +73,35 @@ export function EtkinliklerAdmin({
       place: draft.place.trim() || 'Belirlenecek',
       description: draft.description.trim(),
     }
+    // En üste ekle — bildirim sistemi items[0]’ı “yeni” kabul eder (liste UI tarihe göre sıralar)
     const next: EventsData = {
       updatedAt: new Date().toISOString(),
-      items: [...data.items, item],
+      items: [item, ...data.items],
     }
-    const ok = await publishImmediate(next, 'Etkinlik eklendi ve canlıya yayınlandı.')
-    if (ok) {
-      setDraft({
-        title: '',
-        date: todayIso(),
-        time: '14:00',
-        place: 'Dernek Lokali',
-        description: '',
-      })
-    }
+    const via = await publishImmediate(next, 'Etkinlik eklendi ve canlıya yayınlandı.')
+    if (!via) return
+
+    setDraft({
+      title: '',
+      date: todayIso(),
+      time: '14:00',
+      place: 'Dernek Lokali',
+      description: '',
+    })
+
+    const summary = [item.date, item.time, item.place].filter(Boolean).join(' · ')
+    void publishNotifyToNtfy({
+      kind: 'etkinlik',
+      id: item.id,
+      title: item.title,
+      summary: item.description.trim() || summary,
+    })
+      .then(() => setMsg('Etkinlik yayınlandı. Üyelere anlık bildirim gönderildi.'))
+      .catch(() =>
+        setMsg(
+          'Etkinlik yayınlandı. Anlık kanal bu ağda kapalı; üyeler uygulama açıksa kısa sürede bildirilir.',
+        ),
+      )
   }
 
   const sorted = data.items.slice().sort((a, b) => a.date.localeCompare(b.date))
@@ -91,7 +110,8 @@ export function EtkinliklerAdmin({
     <div className="admin-panel">
       <h2>Etkinlikler</h2>
       <p className="hint">
-        <strong>Etkinlik ekle</strong> hemen canlıya yayınlanır. Yalnızca yönetici PIN’i yeterlidir.
+        <strong>Etkinlik ekle</strong> hemen canlıya yayınlanır ve üyelere bildirim gider. Yalnızca
+        yönetici PIN’i yeterlidir.
       </p>
 
       <div className="admin-fields">

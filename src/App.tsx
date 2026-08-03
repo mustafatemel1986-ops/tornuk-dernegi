@@ -10,6 +10,7 @@ import { NTFY_TOPIC } from './lib/ntfyPush'
 import {
   askServiceWorkerToCheck,
   checkDuyurularInPage,
+  checkEtkinliklerInPage,
   getNotifyPreference,
   listenForNotifySoundFromSw,
   markAskNotifyPermission,
@@ -17,7 +18,9 @@ import {
   registerPeriodicDuyuruCheck,
   shouldAskNotifyPermission,
   showDuyuruNotification,
+  showEtkinlikNotification,
   syncServiceWorkerLastDuyuruId,
+  syncServiceWorkerLastEtkinlikId,
 } from './lib/notifications'
 import { AidatPage } from './pages/AidatPage'
 import { DuyurularPage } from './pages/DuyurularPage'
@@ -97,11 +100,22 @@ function MemberApp() {
             event?: string
             title?: string
             message?: string
+            tags?: string[]
           }
           if (data.event && data.event !== 'message') return
 
+          const tags = data.tags || []
+          const isEtkinlik = tags.includes('etkinlik')
+
           void (async () => {
-            // Gecikmiş eski ntfy’yi yok say: sadece listede gerçekten YENİ olan en üst duyuru
+            if (isEtkinlik) {
+              const result = await checkEtkinliklerInPage({ notify: false })
+              if (!result.isNew || !result.item || !result.latestId) return
+              await syncServiceWorkerLastEtkinlikId(result.latestId)
+              await showEtkinlikNotification(result.item)
+              return
+            }
+
             const result = await checkDuyurularInPage({ notify: false })
             if (!result.isNew || !result.item || !result.latestId) return
             await syncServiceWorkerLastDuyuruId(result.latestId)
@@ -128,14 +142,19 @@ function MemberApp() {
         const liveChannel = getNotifyPreference()
         if (liveChannel) {
           await registerPeriodicDuyuruCheck()
-          // EventSource açıkken SW CHECK gönderme — çift bildirim olmasın
+          // Arka planda SW; önde sayfa kontrolü (ntfy engelli ağlarda yedek)
           if (preferSw && document.visibilityState === 'hidden') {
             await askServiceWorkerToCheck()
           }
         }
-        // Rozet için liste kontrolü; bildirimi EventSource / SW verir
-        const result = await checkDuyurularInPage({ notify: false })
-        if (!cancelled && result.isNew) setDuyuruBadge(true)
+        const duyuru = await checkDuyurularInPage({
+          notify: liveChannel && document.visibilityState === 'visible',
+        })
+        if (!cancelled && duyuru.isNew) setDuyuruBadge(true)
+
+        await checkEtkinliklerInPage({
+          notify: liveChannel && document.visibilityState === 'visible',
+        })
       } catch {
         // ağ yoksa sessiz geç
       }
@@ -155,7 +174,7 @@ function MemberApp() {
     window.addEventListener('focus', onFocus)
     const timer = window.setInterval(() => {
       if (getNotifyPreference()) void runCheck()
-    }, 30 * 1000)
+    }, 15 * 1000)
 
     return () => {
       cancelled = true

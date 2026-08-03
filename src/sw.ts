@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-/** tornuk-sw-v2026-08-03d — notify only latest */
+/** tornuk-sw-v2026-08-03e — duyuru + etkinlik notify */
 import {
   cleanupOutdatedCaches,
   createHandlerBoundToURL,
@@ -63,16 +63,17 @@ try {
 
 const META_CACHE = 'duyuru-meta-v1'
 const LAST_ID_URL = 'https://tornuk.local/last-duyuru-id'
+const LAST_ETKINLIK_URL = 'https://tornuk.local/last-etkinlik-id'
 
-async function getLastId(): Promise<string | null> {
+async function getMeta(url: string): Promise<string | null> {
   const cache = await caches.open(META_CACHE)
-  const hit = await cache.match(LAST_ID_URL)
+  const hit = await cache.match(url)
   return hit ? hit.text() : null
 }
 
-async function setLastId(id: string) {
+async function setMeta(url: string, id: string) {
   const cache = await caches.open(META_CACHE)
-  await cache.put(LAST_ID_URL, new Response(id, { headers: { 'Content-Type': 'text/plain' } }))
+  await cache.put(url, new Response(id, { headers: { 'Content-Type': 'text/plain' } }))
 }
 
 async function notifyClientsPlaySound() {
@@ -96,15 +97,14 @@ async function checkDuyurular() {
   const latest = data.items?.[0]
   if (!latest) return
 
-  const prev = await getLastId()
+  const prev = await getMeta(LAST_ID_URL)
   if (!prev) {
-    await setLastId(latest.id)
+    await setMeta(LAST_ID_URL, latest.id)
     return
   }
 
   if (prev === latest.id) return
 
-  // Sadece en yeniyi bildir — biriken eski duyuruları spam etme
   const options = {
     body: latest.summary,
     icon: `${base}icons/icon-192.png`,
@@ -118,15 +118,71 @@ async function checkDuyurular() {
   await self.registration.showNotification(latest.title, options)
 
   await notifyClientsPlaySound()
-  await setLastId(latest.id)
+  await setMeta(LAST_ID_URL, latest.id)
+}
+
+async function checkEtkinlikler() {
+  const base = self.registration.scope
+  const res = await fetch(
+    `https://raw.githubusercontent.com/mustafatemel1986-ops/tornuk-dernegi/gh-pages/data/etkinlikler.json?t=${Date.now()}`,
+    { cache: 'no-store' },
+  )
+  if (!res.ok) return
+
+  const data = (await res.json()) as {
+    items: {
+      id: string
+      title: string
+      description?: string
+      date?: string
+      time?: string
+      place?: string
+    }[]
+  }
+  const latest = data.items?.[0]
+  if (!latest) return
+
+  const prev = await getMeta(LAST_ETKINLIK_URL)
+  if (!prev) {
+    await setMeta(LAST_ETKINLIK_URL, latest.id)
+    return
+  }
+
+  if (prev === latest.id) return
+
+  const body =
+    latest.description?.trim() ||
+    [latest.date, latest.time, latest.place].filter(Boolean).join(' · ') ||
+    latest.title
+
+  const options = {
+    body,
+    icon: `${base}icons/icon-192.png`,
+    badge: `${base}icons/icon-192.png`,
+    tag: `etkinlik-${latest.id}`,
+    silent: false,
+    data: { url: `${base}?tab=etkinlikler&r=${Date.now()}` },
+    renotify: true,
+    vibrate: [200, 80, 200, 80, 400],
+  } as NotificationOptions
+  await self.registration.showNotification(latest.title, options)
+
+  await notifyClientsPlaySound()
+  await setMeta(LAST_ETKINLIK_URL, latest.id)
 }
 
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'CHECK_DUYURULAR') {
     event.waitUntil(checkDuyurular())
   }
+  if (event.data?.type === 'CHECK_ETKINLIKLER') {
+    event.waitUntil(checkEtkinlikler())
+  }
   if (event.data?.type === 'SET_LAST_DUYURU_ID' && typeof event.data.id === 'string') {
-    event.waitUntil(setLastId(event.data.id))
+    event.waitUntil(setMeta(LAST_ID_URL, event.data.id))
+  }
+  if (event.data?.type === 'SET_LAST_ETKINLIK_ID' && typeof event.data.id === 'string') {
+    event.waitUntil(setMeta(LAST_ETKINLIK_URL, event.data.id))
   }
   if (event.data?.type === 'PURGE_DATA_CACHE') {
     event.waitUntil(purgeDataJsonCaches())
@@ -136,7 +192,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('periodicsync', (event) => {
   const syncEvent = event as Event & { tag: string; waitUntil: (p: Promise<unknown>) => void }
   if (syncEvent.tag === 'check-duyurular') {
-    syncEvent.waitUntil(checkDuyurular())
+    syncEvent.waitUntil(Promise.all([checkDuyurular(), checkEtkinlikler()]))
   }
 })
 

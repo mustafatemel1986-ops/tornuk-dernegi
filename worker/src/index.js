@@ -279,6 +279,80 @@ async function handleLiveGet(env, origin, fileName) {
   }
 }
 
+const NTFY_TOPIC = 'tornuk_dernegi_gumushane_duyuru'
+
+async function sendNtfy(kind, item) {
+  if (!item || typeof item.title !== 'string') return
+  const tab = kind === 'etkinlik' ? 'etkinlikler' : 'duyurular'
+  const key = kind === 'etkinlik' ? 'etkinlik' : 'duyuru'
+  const summary =
+    (typeof item.summary === 'string' && item.summary) ||
+    (typeof item.description === 'string' && item.description) ||
+    item.title
+  const click = `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=${tab}&r=${Date.now()}${
+    item.id ? `&${key}=${encodeURIComponent(item.id)}` : ''
+  }`
+  const res = await fetch('https://ntfy.sh', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      topic: NTFY_TOPIC,
+      title: String(item.title).slice(0, 100),
+      message: String(summary).slice(0, 500),
+      click,
+      priority: 4,
+      tags: [kind === 'etkinlik' ? 'calendar' : 'loudspeaker', kind],
+    }),
+  })
+  if (!res.ok) throw new Error(`ntfy ${res.status}`)
+}
+
+async function requireAdminPin(body, env) {
+  const pin = typeof body.pin === 'string' ? body.pin : ''
+  if (!pin) throw Object.assign(new Error('PIN gerekli.'), { status: 401 })
+  if (!env.ADMIN_PIN_HASH) throw Object.assign(new Error('Sunucu yapılandırması eksik.'), { status: 500 })
+  const hash = await hashPassword(pin)
+  if (hash !== env.ADMIN_PIN_HASH) {
+    throw Object.assign(new Error('PIN hatalı.'), { status: 401 })
+  }
+}
+
+async function handleNotify(request, env, origin) {
+  let body
+  try {
+    body = await request.json()
+  } catch {
+    return json({ ok: false, error: 'Geçersiz istek.' }, 400, origin)
+  }
+
+  try {
+    await requireAdminPin(body, env)
+  } catch (error) {
+    return json(
+      { ok: false, error: error instanceof Error ? error.message : 'Yetkisiz' },
+      error?.status || 401,
+      origin,
+    )
+  }
+
+  const kind = body.kind === 'etkinlik' ? 'etkinlik' : 'duyuru'
+  try {
+    await sendNtfy(kind, {
+      id: typeof body.id === 'string' ? body.id : undefined,
+      title: typeof body.title === 'string' ? body.title : '',
+      summary: typeof body.summary === 'string' ? body.summary : '',
+      description: typeof body.description === 'string' ? body.description : '',
+    })
+    return json({ ok: true }, 200, origin)
+  } catch (error) {
+    return json(
+      { ok: false, error: error instanceof Error ? error.message : 'Bildirim başarısız' },
+      502,
+      origin,
+    )
+  }
+}
+
 async function handlePublish(request, env, origin, ctx) {
   if (!env.GITHUB_TOKEN || !env.ADMIN_PIN_HASH) {
     return json({ ok: false, error: 'Sunucu yapılandırması eksik.' }, 500, origin)
@@ -291,12 +365,14 @@ async function handlePublish(request, env, origin, ctx) {
     return json({ ok: false, error: 'Geçersiz istek.' }, 400, origin)
   }
 
-  const pin = typeof body.pin === 'string' ? body.pin : ''
-  if (!pin) return json({ ok: false, error: 'PIN gerekli.' }, 401, origin)
-
-  const hash = await hashPassword(pin)
-  if (hash !== env.ADMIN_PIN_HASH) {
-    return json({ ok: false, error: 'PIN hatalı.' }, 401, origin)
+  try {
+    await requireAdminPin(body, env)
+  } catch (error) {
+    return json(
+      { ok: false, error: error instanceof Error ? error.message : 'Yetkisiz' },
+      error?.status || 401,
+      origin,
+    )
   }
 
   try {
@@ -361,6 +437,10 @@ export default {
 
     if (request.method === 'POST' && (url.pathname === '/' || url.pathname === '/publish')) {
       return handlePublish(request, env, origin, ctx)
+    }
+
+    if (request.method === 'POST' && url.pathname === '/notify') {
+      return handleNotify(request, env, origin)
     }
 
     if (request.method === 'GET' && url.pathname === '/health') {

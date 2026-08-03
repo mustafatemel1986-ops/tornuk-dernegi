@@ -1,6 +1,7 @@
 import { playNotifySound } from './notifySound'
 
 const STORAGE_KEY = 'tornuk-last-duyuru-id'
+const ETKINLIK_STORAGE_KEY = 'tornuk-last-etkinlik-id'
 const PREF_KEY = 'tornuk-notify-enabled'
 const ASK_KEY = 'tornuk-ask-notify'
 
@@ -39,6 +40,14 @@ export function setLastSeenDuyuruId(id: string) {
   localStorage.setItem(STORAGE_KEY, id)
 }
 
+export function getLastSeenEtkinlikId(): string | null {
+  return localStorage.getItem(ETKINLIK_STORAGE_KEY)
+}
+
+export function setLastSeenEtkinlikId(id: string) {
+  localStorage.setItem(ETKINLIK_STORAGE_KEY, id)
+}
+
 export async function ensureNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) return 'denied'
   if (Notification.permission === 'granted') return 'granted'
@@ -59,7 +68,7 @@ export async function enableNotificationsAfterInstall(): Promise<'granted' | 'de
       await showDuyuruNotification({
         id: `welcome-${Date.now()}`,
         title: 'Törnük Derneği',
-        summary: 'Bildirimler açıldı. Yeni duyurularda size haber vereceğiz.',
+        summary: 'Bildirimler açıldı. Yeni duyuru ve etkinliklerde size haber vereceğiz.',
       })
     } catch {
       // sessiz
@@ -92,6 +101,7 @@ export async function registerPeriodicDuyuruCheck() {
 export async function askServiceWorkerToCheck() {
   const reg = await navigator.serviceWorker?.ready
   reg?.active?.postMessage({ type: 'CHECK_DUYURULAR' })
+  reg?.active?.postMessage({ type: 'CHECK_ETKINLIKLER' })
 }
 
 /** SW’nin son görülen id’sini güncelle — EventSource ile çift bildirimi önler. */
@@ -100,7 +110,18 @@ export async function syncServiceWorkerLastDuyuruId(id: string) {
   reg?.active?.postMessage({ type: 'SET_LAST_DUYURU_ID', id })
 }
 
+export async function syncServiceWorkerLastEtkinlikId(id: string) {
+  const reg = await navigator.serviceWorker?.ready
+  reg?.active?.postMessage({ type: 'SET_LAST_ETKINLIK_ID', id })
+}
+
 export type DuyuruLite = {
+  id: string
+  title: string
+  summary: string
+}
+
+export type EtkinlikLite = {
   id: string
   title: string
   summary: string
@@ -146,6 +167,42 @@ export async function showDuyuruNotification(
   }
 }
 
+export async function showEtkinlikNotification(
+  item: EtkinlikLite,
+  options?: { playSound?: boolean },
+) {
+  if (options?.playSound !== false) playNotifySound()
+
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+
+  const opts: NotificationOptions & { vibrate?: number[]; renotify?: boolean } = {
+    body: item.summary,
+    icon: iconUrl(),
+    badge: iconUrl(),
+    tag: `etkinlik-${item.id}`,
+    renotify: true,
+    silent: false,
+    vibrate: [200, 80, 200, 80, 400],
+    data: { url: `${import.meta.env.BASE_URL}?tab=etkinlikler&r=${Date.now()}` },
+  }
+
+  try {
+    const reg = await navigator.serviceWorker?.ready
+    if (reg?.showNotification) {
+      await reg.showNotification(item.title, opts)
+      return
+    }
+  } catch {
+    // fallback
+  }
+
+  try {
+    new Notification(item.title, opts)
+  } catch {
+    // engelli
+  }
+}
+
 /** Menüden deneme bildirimi + ses. */
 export async function sendTestNotification() {
   const permission = await ensureNotificationPermission()
@@ -186,6 +243,56 @@ export async function checkDuyurularInPage(options?: {
     setLastSeenDuyuruId(latest.id)
     if (options?.notify && getNotifyPreference()) {
       await showDuyuruNotification(latest)
+    }
+  }
+
+  return { latestId: latest.id, isNew, item: latest }
+}
+
+/** Yeni etkinlik kontrolü (items[0] = son eklenen). */
+export async function checkEtkinliklerInPage(options?: {
+  notify?: boolean
+}): Promise<{ latestId: string | null; isNew: boolean; item: EtkinlikLite | null }> {
+  const res = await fetch(
+    `https://raw.githubusercontent.com/mustafatemel1986-ops/tornuk-dernegi/gh-pages/data/etkinlikler.json?t=${Date.now()}`,
+    { cache: 'no-store' },
+  )
+  if (!res.ok) return { latestId: null, isNew: false, item: null }
+
+  const data = (await res.json()) as {
+    items: {
+      id: string
+      title: string
+      description?: string
+      date?: string
+      time?: string
+      place?: string
+    }[]
+  }
+  const latestRaw = data.items?.[0]
+  if (!latestRaw) return { latestId: null, isNew: false, item: null }
+
+  const latest: EtkinlikLite = {
+    id: latestRaw.id,
+    title: latestRaw.title,
+    summary:
+      latestRaw.description?.trim() ||
+      [latestRaw.date, latestRaw.time, latestRaw.place].filter(Boolean).join(' · ') ||
+      latestRaw.title,
+  }
+
+  const prev = getLastSeenEtkinlikId()
+  const isNew = Boolean(prev && prev !== latest.id)
+
+  if (!prev) {
+    setLastSeenEtkinlikId(latest.id)
+    return { latestId: latest.id, isNew: false, item: latest }
+  }
+
+  if (isNew) {
+    setLastSeenEtkinlikId(latest.id)
+    if (options?.notify && getNotifyPreference()) {
+      await showEtkinlikNotification(latest)
     }
   }
 
