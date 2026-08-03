@@ -1,4 +1,4 @@
-import type { AnnouncementsData, EventsData, MembershipData } from '../types'
+import type { AnnouncementsData, AssociationData, EventsData, MembershipData } from '../types'
 import { PUBLISH_API_URL } from './publishConfig'
 
 const MEMBERS_KEY = 'tornuk-live-members'
@@ -136,6 +136,10 @@ export async function loadAnnouncementsData(): Promise<AnnouncementsData> {
 
 export async function loadEventsData(): Promise<EventsData> {
   return fetchJson<EventsData>('etkinlikler.json')
+}
+
+export async function loadAssociationData(): Promise<AssociationData> {
+  return fetchJson<AssociationData>('dernek.json')
 }
 
 export function hasLiveDraft(): boolean {

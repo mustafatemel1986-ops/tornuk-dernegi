@@ -8,12 +8,13 @@ import {
   setLiveEvents,
   setLiveMembers,
 } from '../lib/liveData'
-import type { AnnouncementsData, EventsData, MembershipData } from '../types'
+import type { AnnouncementsData, AssociationData, EventsData, MembershipData } from '../types'
 
 export function SavePanel({
   members,
   announcements,
   events,
+  association,
   dirty,
   onSaved,
   onReloadFromServer,
@@ -21,6 +22,7 @@ export function SavePanel({
   members: MembershipData
   announcements: AnnouncementsData
   events: EventsData
+  association: AssociationData
   dirty: boolean
   onSaved: () => void
   onReloadFromServer: () => void
@@ -36,6 +38,7 @@ export function SavePanel({
     downloadJson('uyeler.json', members)
     downloadJson('duyurular.json', announcements)
     downloadJson('etkinlikler.json', events)
+    downloadJson('dernek.json', association)
     setMsg('Yedek dosyalar indirildi.')
     setErr(null)
     onSaved()
@@ -55,6 +58,7 @@ export function SavePanel({
         { path: 'public/data/uyeler.json', data: members },
         { path: 'public/data/duyurular.json', data: announcements },
         { path: 'public/data/etkinlikler.json', data: events },
+        { path: 'public/data/dernek.json', data: association },
       ])
       setLiveMembers(members)
       setLiveAnnouncements(announcements)

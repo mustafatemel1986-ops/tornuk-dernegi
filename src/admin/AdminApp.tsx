@@ -8,21 +8,29 @@ import {
   setLiveEvents,
   setLiveMembers,
 } from '../lib/liveData'
-import type { AnnouncementsData, EventsData, MembershipData } from '../types'
+import type { AnnouncementsData, AssociationData, EventsData, MembershipData } from '../types'
 import './admin.css'
 import { AdminLogin } from './AdminLogin'
 import { AidatAdmin } from './AidatAdmin'
+import { DernekAdmin } from './DernekAdmin'
 import { DuyurularAdmin } from './DuyurularAdmin'
 import { EtkinliklerAdmin } from './EtkinliklerAdmin'
 import { SavePanel } from './SavePanel'
 import { InstallStats } from './InstallStats'
 
-type AdminTab = 'aidat' | 'duyurular' | 'etkinlikler' | 'indirenler' | 'ayarlar'
+type AdminTab =
+  | 'aidat'
+  | 'duyurular'
+  | 'etkinlikler'
+  | 'site'
+  | 'indirenler'
+  | 'ayarlar'
 
 type Store = {
   members: MembershipData | null
   announcements: AnnouncementsData | null
   events: EventsData | null
+  association: AssociationData | null
 }
 
 export function AdminApp() {
@@ -31,6 +39,7 @@ export function AdminApp() {
   const [members, setMembers] = useState<MembershipData | null>(null)
   const [announcements, setAnnouncements] = useState<AnnouncementsData | null>(null)
   const [events, setEvents] = useState<EventsData | null>(null)
+  const [association, setAssociation] = useState<AssociationData | null>(null)
   const [dirty, setDirty] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -38,7 +47,12 @@ export function AdminApp() {
   const [publishNote, setPublishNote] = useState<string | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
 
-  const dataRef = useRef<Store>({ members: null, announcements: null, events: null })
+  const dataRef = useRef<Store>({
+    members: null,
+    announcements: null,
+    events: null,
+    association: null,
+  })
   /** Son başarılı yayın — boş liste ile üzerine yazmayı engeller. */
   const lastGoodRef = useRef<{
     membersCount: number
@@ -54,7 +68,7 @@ export function AdminApp() {
   const publishingLock = useRef(false)
 
   if (!publishingLock.current) {
-    dataRef.current = { members, announcements, events }
+    dataRef.current = { members, announcements, events, association }
   }
 
   useEffect(() => {
@@ -104,10 +118,11 @@ export function AdminApp() {
           }
         }
 
-        const [m, d, e] = await Promise.all([
+        const [m, d, e, a] = await Promise.all([
           loadFile<MembershipData>('uyeler.json'),
           loadFile<AnnouncementsData>('duyurular.json'),
           loadFile<EventsData>('etkinlikler.json'),
+          loadFile<AssociationData>('dernek.json'),
         ])
         if (cancelled) return
 
@@ -115,7 +130,8 @@ export function AdminApp() {
         setMembers(m)
         setAnnouncements(d)
         setEvents(e)
-        dataRef.current = { members: m, announcements: d, events: e }
+        setAssociation(a)
+        dataRef.current = { members: m, announcements: d, events: e, association: a }
         setLiveMembers(m)
         setLiveAnnouncements(d)
         setLiveEvents(e)
@@ -148,7 +164,7 @@ export function AdminApp() {
     try {
       const via = await pushAdminData(pin, () => {
         const snap = dataRef.current
-        if (!snap.members || !snap.announcements || !snap.events) {
+        if (!snap.members || !snap.announcements || !snap.events || !snap.association) {
           throw new Error('Veriler henüz yüklenmedi.')
         }
 
@@ -164,6 +180,7 @@ export function AdminApp() {
           { path: 'public/data/uyeler.json', data: snap.members as unknown },
           { path: 'public/data/duyurular.json', data: snap.announcements as unknown },
           { path: 'public/data/etkinlikler.json', data: snap.events as unknown },
+          { path: 'public/data/dernek.json', data: snap.association as unknown },
         ]
         if (!onlyPaths?.length) return all
         const filtered = all.filter((f) => onlyPaths.includes(f.path))
@@ -171,10 +188,11 @@ export function AdminApp() {
       })
 
       const done = dataRef.current
-      if (done.members && done.announcements && done.events) {
+      if (done.members && done.announcements && done.events && done.association) {
         setMembers(done.members)
         setAnnouncements(done.announcements)
         setEvents(done.events)
+        setAssociation(done.association)
         setLiveMembers(done.members)
         setLiveAnnouncements(done.announcements)
         setLiveEvents(done.events)
@@ -281,6 +299,12 @@ export function AdminApp() {
     ])
   }
 
+  function patchAssociation(next: AssociationData) {
+    setAssociation(next)
+    dataRef.current = { ...dataRef.current, association: next }
+    schedulePublish(700, 'Site içeriği otomatik yayınlandı.', ['public/data/dernek.json'])
+  }
+
   if (!authed) {
     return (
       <div className="admin-shell">
@@ -297,7 +321,7 @@ export function AdminApp() {
     )
   }
 
-  if (!members || !announcements || !events) {
+  if (!members || !announcements || !events || !association) {
     return (
       <div className="admin-shell">
         <p className="hint">Yönetim verileri yükleniyor…</p>
@@ -311,8 +335,8 @@ export function AdminApp() {
         <div>
           <h1>Yönetim paneli</h1>
           <p className="hint">
-            Duyuru / etkinlik / aidat ekleyince <strong>otomatik canlıya yayınlanır</strong>. Kaydet
-            menüsüne girmenize gerek yok.
+            Duyuru / etkinlik / aidat / site içeriği ekleyince{' '}
+            <strong>otomatik canlıya yayınlanır</strong>. Kaydet menüsüne girmenize gerek yok.
           </p>
         </div>
         <div className="admin-actions">
@@ -355,6 +379,7 @@ export function AdminApp() {
             ['aidat', 'Aidat'],
             ['duyurular', 'Duyurular'],
             ['etkinlikler', 'Etkinlikler'],
+            ['site', 'Site'],
             ['indirenler', 'İndirenler'],
             ['ayarlar', 'Ayarlar'],
           ] as const
@@ -445,12 +470,36 @@ export function AdminApp() {
           }}
         />
       )}
+      {tab === 'site' && (
+        <DernekAdmin
+          data={association}
+          onChange={patchAssociation}
+          onPublishNow={async (next, successText) => {
+            const prev = dataRef.current.association
+            publishingLock.current = true
+            dataRef.current = { ...dataRef.current, association: next }
+            setAssociation(next)
+            setDirty(true)
+            try {
+              return await flushPublish(successText, ['public/data/dernek.json'])
+            } catch (error) {
+              if (prev) {
+                dataRef.current = { ...dataRef.current, association: prev }
+                setAssociation(prev)
+              }
+              publishingLock.current = false
+              throw error
+            }
+          }}
+        />
+      )}
       {tab === 'indirenler' && <InstallStats />}
       {tab === 'ayarlar' && (
         <SavePanel
           members={members}
           announcements={announcements}
           events={events}
+          association={association}
           dirty={dirty}
           onSaved={() => {
             setDirty(false)
@@ -467,6 +516,7 @@ export function AdminApp() {
             setMembers(null)
             setAnnouncements(null)
             setEvents(null)
+            setAssociation(null)
             setDirty(false)
             setDraftNote(null)
             setReloadToken((n) => n + 1)

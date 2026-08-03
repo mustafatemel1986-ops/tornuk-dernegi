@@ -17,6 +17,7 @@ const ALLOWED_PATHS = new Set([
   'public/data/uyeler.json',
   'public/data/duyurular.json',
   'public/data/etkinlikler.json',
+  'public/data/dernek.json',
   'public/data/push-subscriptions.json',
 ])
 
@@ -232,6 +233,7 @@ const LIVE_FILES = new Set([
   'uyeler.json',
   'duyurular.json',
   'etkinlikler.json',
+  'dernek.json',
   'push-subscriptions.json',
 ])
 /** Yayın sonrası anında okuma — CDN beklemeden */

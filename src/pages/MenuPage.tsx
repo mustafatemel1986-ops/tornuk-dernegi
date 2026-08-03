@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { InstallButton } from '../components/InstallButton'
 import { getAdminHref } from '../lib/adminRoute'
+import { loadAssociationData } from '../lib/liveData'
 import {
   askServiceWorkerToCheck,
   ensureNotificationPermission,
@@ -35,10 +36,12 @@ export function MenuPage({
   useEffect(() => {
     let cancelled = false
     async function load() {
-      const res = await fetch(`${import.meta.env.BASE_URL}data/dernek.json`)
-      if (!res.ok) return
-      const json = (await res.json()) as AssociationData
-      if (!cancelled) setData(json)
+      try {
+        const json = await loadAssociationData()
+        if (!cancelled) setData(json)
+      } catch {
+        // sessiz
+      }
     }
     void load()
     return () => {
