@@ -1,6 +1,14 @@
 {
-  "updatedAt": "2026-08-03T11:46:12.031Z",
+  "updatedAt": "2026-08-03T11:51:37.689Z",
   "items": [
+    {
+      "id": "etk-2026-08-03-msd658ex-anlık-denem",
+      "title": "Anlık denem",
+      "date": "2026-08-03",
+      "time": "14:00",
+      "place": "Dernek Lokali",
+      "description": ""
+    },
     {
       "id": "etk-2026-08-03-msd5y94v-piknik",
       "title": "Piknik",
