@@ -77,10 +77,9 @@ export async function pushAdminData(
     throw new Error('Oturum süresi dolmuş. Yönetim paneline tekrar giriş yapın.')
   }
 
-  const run = publishQueue.catch(() => undefined).then(() => {
-    const files = typeof filesOrFactory === 'function' ? filesOrFactory() : filesOrFactory
-    return pushUnlocked(pin.trim(), files)
-  })
+  // Dosyaları kuyruk beklemeden şimdi al — React re-render dataRef’i eski haline çekmesin
+  const files = typeof filesOrFactory === 'function' ? filesOrFactory() : filesOrFactory
+  const run = publishQueue.catch(() => undefined).then(() => pushUnlocked(pin.trim(), files))
   publishQueue = run.then(
     () => undefined,
     () => undefined,

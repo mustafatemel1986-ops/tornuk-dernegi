@@ -46,8 +46,12 @@ export function AdminApp() {
     eventsCount: number
   }>({ membersCount: 0, announcementsCount: 0, eventsCount: 0 })
   const publishTimer = useRef<number | null>(null)
+  /** Yayın sırasında React state henüz güncellenmemişken dataRef’i ezme. */
+  const publishingLock = useRef(false)
 
-  dataRef.current = { members, announcements, events }
+  if (!publishingLock.current) {
+    dataRef.current = { members, announcements, events }
+  }
 
   useEffect(() => {
     if (!authed) return
@@ -116,6 +120,7 @@ export function AdminApp() {
     }
     setPublishing(true)
     setPublishNote(null)
+    publishingLock.current = true
 
     try {
       await pushAdminData(pin, () => {
@@ -160,6 +165,7 @@ export function AdminApp() {
       setDraftNote(null)
       setPublishNote(successText || 'Canlıya yayınlandı.')
     } finally {
+      publishingLock.current = false
       setPublishing(false)
     }
   }, [])
@@ -320,11 +326,23 @@ export function AdminApp() {
           data={announcements}
           onChange={patchAnnouncements}
           onPublishNow={async (next, successText) => {
+            const prev = dataRef.current.announcements
+            publishingLock.current = true
             dataRef.current = { ...dataRef.current, announcements: next }
-            setDirty(true)
-            await flushPublish(successText, ['public/data/duyurular.json'])
             setAnnouncements(next)
             setLiveAnnouncements(next)
+            setDirty(true)
+            try {
+              await flushPublish(successText, ['public/data/duyurular.json'])
+            } catch (error) {
+              if (prev) {
+                dataRef.current = { ...dataRef.current, announcements: prev }
+                setAnnouncements(prev)
+                setLiveAnnouncements(prev)
+              }
+              publishingLock.current = false
+              throw error
+            }
           }}
         />
       )}
@@ -333,11 +351,23 @@ export function AdminApp() {
           data={events}
           onChange={patchEvents}
           onPublishNow={async (next, successText) => {
+            const prev = dataRef.current.events
+            publishingLock.current = true
             dataRef.current = { ...dataRef.current, events: next }
-            setDirty(true)
-            await flushPublish(successText, ['public/data/etkinlikler.json'])
             setEvents(next)
             setLiveEvents(next)
+            setDirty(true)
+            try {
+              await flushPublish(successText, ['public/data/etkinlikler.json'])
+            } catch (error) {
+              if (prev) {
+                dataRef.current = { ...dataRef.current, events: prev }
+                setEvents(prev)
+                setLiveEvents(prev)
+              }
+              publishingLock.current = false
+              throw error
+            }
           }}
         />
       )}
