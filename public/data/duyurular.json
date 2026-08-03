@@ -1,6 +1,13 @@
 {
-  "updatedAt": "2026-08-03T08:09:53.984Z",
+  "updatedAt": "2026-08-03T08:10:37.578Z",
   "items": [
+    {
+      "id": "duyuru-2026-08-03-mscy90ui-denem",
+      "title": "Denem",
+      "summary": "Denem",
+      "body": "Dene",
+      "date": "2026-08-07"
+    },
     {
       "id": "duyuru-2026-07-genel-kurul",
       "title": "Olağan Genel Kurul Duyurusu",
