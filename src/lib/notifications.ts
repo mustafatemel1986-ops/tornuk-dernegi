@@ -8,8 +8,11 @@ export function getNotifyPreference(): boolean {
   return localStorage.getItem(PREF_KEY) === '1'
 }
 
+export const NOTIFY_PREF_EVENT = 'tornuk-notify-pref'
+
 export function setNotifyPreference(enabled: boolean) {
   localStorage.setItem(PREF_KEY, enabled ? '1' : '0')
+  window.dispatchEvent(new Event(NOTIFY_PREF_EVENT))
 }
 
 /** Kurulum sonrası bildirim izni sorulacak mı? */
@@ -89,6 +92,12 @@ export async function registerPeriodicDuyuruCheck() {
 export async function askServiceWorkerToCheck() {
   const reg = await navigator.serviceWorker?.ready
   reg?.active?.postMessage({ type: 'CHECK_DUYURULAR' })
+}
+
+/** SW’nin son görülen id’sini güncelle — EventSource ile çift bildirimi önler. */
+export async function syncServiceWorkerLastDuyuruId(id: string) {
+  const reg = await navigator.serviceWorker?.ready
+  reg?.active?.postMessage({ type: 'SET_LAST_DUYURU_ID', id })
 }
 
 export type DuyuruLite = {

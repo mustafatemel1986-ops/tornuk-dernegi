@@ -22,6 +22,12 @@ import { InstallStats } from './InstallStats'
 
 type AdminTab = 'aidat' | 'duyurular' | 'etkinlikler' | 'indirenler' | 'ayarlar'
 
+type Store = {
+  members: MembershipData | null
+  announcements: AnnouncementsData | null
+  events: EventsData | null
+}
+
 export function AdminApp() {
   const [authed, setAuthed] = useState(() => isAdminLoggedIn())
   const [tab, setTab] = useState<AdminTab>('duyurular')
@@ -29,13 +35,20 @@ export function AdminApp() {
   const [announcements, setAnnouncements] = useState<AnnouncementsData | null>(null)
   const [events, setEvents] = useState<EventsData | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [draftNote, setDraftNote] = useState<string | null>(null)
   const [publishNote, setPublishNote] = useState<string | null>(null)
-
   const [reloadToken, setReloadToken] = useState(0)
-  const dataRef = useRef({ members, announcements, events })
-  const aidatTimer = useRef<number | null>(null)
+
+  const dataRef = useRef<Store>({ members: null, announcements: null, events: null })
+  /** Son başarılı yayın — boş liste ile üzerine yazmayı engeller. */
+  const lastGoodRef = useRef<{
+    membersCount: number
+    announcementsCount: number
+    eventsCount: number
+  }>({ membersCount: 0, announcementsCount: 0, eventsCount: 0 })
+  const publishTimer = useRef<number | null>(null)
 
   dataRef.current = { members, announcements, events }
 
@@ -66,15 +79,48 @@ export function AdminApp() {
         const duyuruPick = pickNewerData(getLiveAnnouncements(), d)
         const eventsPick = pickNewerData(getLiveEvents(), e)
 
-        setMembers(membersPick.data)
-        setAnnouncements(duyuruPick.data)
-        setEvents(eventsPick.data)
+        // Boş yerel taslak, dolu sunucuyu ezmesin
+        const membersData =
+          membersPick.fromLive &&
+          membersPick.data.members.length === 0 &&
+          m.members.length > 0
+            ? m
+            : membersPick.data
+        const duyuruData =
+          duyuruPick.fromLive &&
+          duyuruPick.data.items.length === 0 &&
+          d.items.length > 0
+            ? d
+            : duyuruPick.data
+        const eventsData =
+          eventsPick.fromLive &&
+          eventsPick.data.items.length === 0 &&
+          e.items.length > 0
+            ? e
+            : eventsPick.data
 
-        const usingDraft = membersPick.fromLive || duyuruPick.fromLive || eventsPick.fromLive
+        setMembers(membersData)
+        setAnnouncements(duyuruData)
+        setEvents(eventsData)
+        dataRef.current = {
+          members: membersData,
+          announcements: duyuruData,
+          events: eventsData,
+        }
+        lastGoodRef.current = {
+          membersCount: m.members.length,
+          announcementsCount: d.items.length,
+          eventsCount: e.items.length,
+        }
+
+        const usingDraft =
+          (membersPick.fromLive && membersData === membersPick.data) ||
+          (duyuruPick.fromLive && duyuruData === duyuruPick.data) ||
+          (eventsPick.fromLive && eventsData === eventsPick.data)
         setDirty(usingDraft)
         if (usingDraft) {
           setDraftNote(
-            'Yayınlanmamış yerel taslak vardı. Aidat/duyuru/etkinlik ekleyince otomatik yayınlanır; veya Ayarlar → sunucudan yükle.',
+            'Yayınlanmamış yerel taslak vardı. Değişiklikler otomatik yayınlanır; veya Ayarlar → sunucudan yükle.',
           )
         }
       } catch {
@@ -88,66 +134,124 @@ export function AdminApp() {
     }
   }, [authed, reloadToken])
 
-  const publishLive = useCallback(
-    async (patch?: {
-      members?: MembershipData
-      announcements?: AnnouncementsData
-      events?: EventsData
-    }) => {
-      const settings = loadGithubSettings()
-      if (!settings.token) {
-        throw new Error(
-          'Access Token yok. Duyurular sekmesindeki “İlk kurulum”dan bir kez token kaydedin.',
-        )
+  const publishNow = useCallback(async (successText?: string) => {
+    const settings = loadGithubSettings()
+    if (!settings.token) {
+      throw new Error(
+        'Access Token yok. Duyurular sekmesindeki “İlk kurulum”dan bir kez token kaydedin.',
+      )
+    }
+    saveGithubSettings(settings)
+    setPublishing(true)
+    setPublishNote(null)
+
+    try {
+      // Kuyruk işi ÇALIŞIRKEN dataRef okunur — eski snapshot ile üzerine yazılmaz
+      await pushAdminData(settings, () => {
+        const snap = dataRef.current
+        if (!snap.members || !snap.announcements || !snap.events) {
+          throw new Error('Veriler henüz yüklenmedi.')
+        }
+
+        const good = lastGoodRef.current
+        if (snap.announcements.items.length === 0 && good.announcementsCount > 0) {
+          throw new Error(
+            'Boş duyuru listesi canlıyı silmez. Ayarlar → sunucudan yükle ile yenileyin.',
+          )
+        }
+        if (snap.events.items.length === 0 && good.eventsCount > 0) {
+          throw new Error(
+            'Boş etkinlik listesi canlıyı silmez. Ayarlar → sunucudan yükle ile yenileyin.',
+          )
+        }
+        if (snap.members.members.length === 0 && good.membersCount > 0) {
+          throw new Error(
+            'Boş üye listesi canlıyı silmez. Ayarlar → sunucudan yükle ile yenileyin.',
+          )
+        }
+
+        return [
+          { path: 'public/data/uyeler.json', data: snap.members },
+          { path: 'public/data/duyurular.json', data: snap.announcements },
+          { path: 'public/data/etkinlikler.json', data: snap.events },
+        ]
+      })
+
+      const done = dataRef.current
+      if (done.members && done.announcements && done.events) {
+        setMembers(done.members)
+        setAnnouncements(done.announcements)
+        setEvents(done.events)
+        setLiveMembers(done.members)
+        setLiveAnnouncements(done.announcements)
+        setLiveEvents(done.events)
+        lastGoodRef.current = {
+          membersCount: done.members.members.length,
+          announcementsCount: done.announcements.items.length,
+          eventsCount: done.events.items.length,
+        }
       }
-      saveGithubSettings(settings)
-
-      // Sıra githubSave kuyruğunda; çalışırken en güncel dataRef kullanılır
-      if (patch?.members) dataRef.current = { ...dataRef.current, members: patch.members }
-      if (patch?.announcements) {
-        dataRef.current = { ...dataRef.current, announcements: patch.announcements }
-      }
-      if (patch?.events) dataRef.current = { ...dataRef.current, events: patch.events }
-
-      const nextMembers = dataRef.current.members
-      const nextAnnouncements = dataRef.current.announcements
-      const nextEvents = dataRef.current.events
-      if (!nextMembers || !nextAnnouncements || !nextEvents) {
-        throw new Error('Veriler henüz yüklenmedi.')
-      }
-
-      await pushAdminData(settings, [
-        { path: 'public/data/uyeler.json', data: nextMembers },
-        { path: 'public/data/duyurular.json', data: nextAnnouncements },
-        { path: 'public/data/etkinlikler.json', data: nextEvents },
-      ])
-
-      setMembers(nextMembers)
-      setAnnouncements(nextAnnouncements)
-      setEvents(nextEvents)
-      setLiveMembers(nextMembers)
-      setLiveAnnouncements(nextAnnouncements)
-      setLiveEvents(nextEvents)
       setDirty(false)
       setDraftNote(null)
-      setPublishNote('Canlıya yayınlandı.')
+      setPublishNote(successText || 'Canlıya yayınlandı.')
+    } finally {
+      setPublishing(false)
+    }
+  }, [])
+
+  const schedulePublish = useCallback(
+    (delayMs = 1600, successText?: string) => {
+      setDirty(true)
+      if (publishTimer.current) window.clearTimeout(publishTimer.current)
+      publishTimer.current = window.setTimeout(() => {
+        publishTimer.current = null
+        void publishNow(successText || 'Değişiklikler otomatik yayınlandı.').catch((error) =>
+          setDraftNote(error instanceof Error ? error.message : 'Yayın başarısız.'),
+        )
+      }, delayMs)
     },
-    [],
+    [publishNow],
   )
 
-  function scheduleAidatPublish(next: MembershipData) {
+  const flushPublish = useCallback(
+    async (successText?: string) => {
+      if (publishTimer.current) {
+        window.clearTimeout(publishTimer.current)
+        publishTimer.current = null
+      }
+      await publishNow(successText)
+    },
+    [publishNow],
+  )
+
+  function changeTab(next: AdminTab) {
+    if (dirty && publishTimer.current) {
+      void flushPublish('Bekleyen değişiklikler yayınlandı.').catch((error) =>
+        setDraftNote(error instanceof Error ? error.message : 'Yayın başarısız.'),
+      )
+    }
+    setTab(next)
+  }
+
+  function patchMembers(next: MembershipData) {
     setMembers(next)
     setLiveMembers(next)
-    setDirty(true)
     dataRef.current = { ...dataRef.current, members: next }
-    if (aidatTimer.current) window.clearTimeout(aidatTimer.current)
-    aidatTimer.current = window.setTimeout(() => {
-      void publishLive({ members: next })
-        .then(() => setPublishNote('Aidat değişiklikleri otomatik yayınlandı.'))
-        .catch((error) =>
-          setDraftNote(error instanceof Error ? error.message : 'Aidat yayını başarısız.'),
-        )
-    }, 2500)
+    schedulePublish(2500, 'Aidat değişiklikleri otomatik yayınlandı.')
+  }
+
+  function patchAnnouncements(next: AnnouncementsData) {
+    setAnnouncements(next)
+    setLiveAnnouncements(next)
+    dataRef.current = { ...dataRef.current, announcements: next }
+    schedulePublish(1600, 'Duyuru değişiklikleri otomatik yayınlandı.')
+  }
+
+  function patchEvents(next: EventsData) {
+    setEvents(next)
+    setLiveEvents(next)
+    dataRef.current = { ...dataRef.current, events: next }
+    schedulePublish(1600, 'Etkinlik değişiklikleri otomatik yayınlandı.')
   }
 
   if (!authed) {
@@ -185,7 +289,11 @@ export function AdminApp() {
           </p>
         </div>
         <div className="admin-actions">
-          {dirty && <span className="admin-dirty">Yayınlanıyor…</span>}
+          {publishing ? (
+            <span className="admin-dirty">Yayınlanıyor…</span>
+          ) : dirty ? (
+            <span className="admin-dirty">Bekleyen değişiklik…</span>
+          ) : null}
           <a
             className="btn btn-ghost"
             href={import.meta.env.BASE_URL}
@@ -227,41 +335,37 @@ export function AdminApp() {
             key={id}
             type="button"
             className={`admin-tab ${tab === id ? 'is-active' : ''}`}
-            onClick={() => setTab(id)}
+            onClick={() => changeTab(id)}
           >
             {label}
           </button>
         ))}
       </div>
 
-      {tab === 'aidat' && (
-        <AidatAdmin data={members} onChange={(next) => scheduleAidatPublish(next)} />
-      )}
+      {tab === 'aidat' && <AidatAdmin data={members} onChange={patchMembers} />}
       {tab === 'duyurular' && (
         <DuyurularAdmin
           data={announcements}
-          onChange={(next) => {
+          onChange={patchAnnouncements}
+          onPublishNow={async (next, successText) => {
             setAnnouncements(next)
             setLiveAnnouncements(next)
             dataRef.current = { ...dataRef.current, announcements: next }
             setDirty(true)
-          }}
-          onPublish={async (next) => {
-            await publishLive({ announcements: next })
+            await flushPublish(successText)
           }}
         />
       )}
       {tab === 'etkinlikler' && (
         <EtkinliklerAdmin
           data={events}
-          onChange={(next) => {
+          onChange={patchEvents}
+          onPublishNow={async (next, successText) => {
             setEvents(next)
             setLiveEvents(next)
             dataRef.current = { ...dataRef.current, events: next }
             setDirty(true)
-          }}
-          onPublish={async (next) => {
-            await publishLive({ events: next })
+            await flushPublish(successText)
           }}
         />
       )}
@@ -276,6 +380,11 @@ export function AdminApp() {
             setDirty(false)
             setDraftNote(null)
             setPublishNote('Manuel yayın tamam.')
+            lastGoodRef.current = {
+              membersCount: members.members.length,
+              announcementsCount: announcements.items.length,
+              eventsCount: events.items.length,
+            }
           }}
           onReloadFromServer={() => {
             clearLiveData()

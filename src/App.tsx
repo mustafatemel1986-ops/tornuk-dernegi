@@ -13,9 +13,12 @@ import {
   getNotifyPreference,
   listenForNotifySoundFromSw,
   markAskNotifyPermission,
+  NOTIFY_PREF_EVENT,
   registerPeriodicDuyuruCheck,
+  setLastSeenDuyuruId,
   shouldAskNotifyPermission,
   showDuyuruNotification,
+  syncServiceWorkerLastDuyuruId,
 } from './lib/notifications'
 import { AidatPage } from './pages/AidatPage'
 import { DuyurularPage } from './pages/DuyurularPage'
@@ -74,7 +77,16 @@ function MemberApp() {
     }
   }, [])
 
-  // Uygulama bellekteyken duyuru kanalı (kullanıcı başka siteye gitmez)
+  // Menü / kurulum bildirim tercihini dinle
+  useEffect(() => {
+    function syncPref() {
+      setNotifyReady(getNotifyPreference())
+    }
+    window.addEventListener(NOTIFY_PREF_EVENT, syncPref)
+    return () => window.removeEventListener(NOTIFY_PREF_EVENT, syncPref)
+  }, [])
+
+  // Uygulama açıkken tek bildirim yolu: ntfy EventSource
   useEffect(() => {
     if (!notifyReady) return
     let source: EventSource | null = null
@@ -89,11 +101,22 @@ function MemberApp() {
             id?: string
           }
           if (data.event && data.event !== 'message') return
-          void showDuyuruNotification({
-            id: data.id || `ntfy-${Date.now()}`,
-            title: data.title || 'Törnük Derneği',
-            summary: data.message || 'Yeni duyuru',
-          })
+
+          void (async () => {
+            // Önce canlı listeyi çek — bildirim ile liste aynı id’yi göstersin
+            const result = await checkDuyurularInPage({ notify: false })
+            const item = result.item || {
+              id: data.id || `ntfy-${Date.now()}`,
+              title: data.title || 'Törnük Derneği',
+              summary: data.message || 'Yeni duyuru',
+            }
+            if (result.latestId) {
+              setLastSeenDuyuruId(result.latestId)
+              await syncServiceWorkerLastDuyuruId(result.latestId)
+            }
+            setDuyuruBadge(true)
+            await showDuyuruNotification(item)
+          })()
         } catch {
           // keepalive / parse
         }
@@ -111,14 +134,16 @@ function MemberApp() {
     async function runCheck() {
       try {
         const preferSw = Boolean(navigator.serviceWorker?.controller)
-        if (getNotifyPreference()) {
+        const liveChannel = getNotifyPreference()
+        if (liveChannel) {
           await registerPeriodicDuyuruCheck()
-          if (preferSw) await askServiceWorkerToCheck()
+          // EventSource açıkken SW CHECK gönderme — çift bildirim olmasın
+          if (preferSw && document.visibilityState === 'hidden') {
+            await askServiceWorkerToCheck()
+          }
         }
-        // SW varken bildirimi SW göstersin (çift ses olmasın); sayfa sadece rozeti günceller
-        const result = await checkDuyurularInPage({
-          notify: getNotifyPreference() && !preferSw,
-        })
+        // Rozet için liste kontrolü; bildirimi EventSource / SW verir
+        const result = await checkDuyurularInPage({ notify: false })
         if (!cancelled && result.isNew) setDuyuruBadge(true)
       } catch {
         // ağ yoksa sessiz geç
@@ -137,10 +162,9 @@ function MemberApp() {
 
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onFocus)
-    // Uygulama açıkken ~15 sn’de bir kontrol (iPhone arka planda çalışmaz)
     const timer = window.setInterval(() => {
       if (getNotifyPreference()) void runCheck()
-    }, 15 * 1000)
+    }, 30 * 1000)
 
     return () => {
       cancelled = true

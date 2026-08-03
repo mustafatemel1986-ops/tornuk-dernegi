@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useState } from 'react'
 import { loadGithubSettings } from '../lib/githubSave'
 import type { EventItem, EventsData } from '../types'
 
@@ -19,11 +19,11 @@ function makeId(title: string) {
 export function EtkinliklerAdmin({
   data,
   onChange,
-  onPublish,
+  onPublishNow,
 }: {
   data: EventsData
   onChange: (next: EventsData) => void
-  onPublish: (next: EventsData) => Promise<void>
+  onPublishNow: (next: EventsData, successText: string) => Promise<void>
 }) {
   const [draft, setDraft] = useState({
     title: '',
@@ -35,42 +35,29 @@ export function EtkinliklerAdmin({
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const editTimer = useRef<number | null>(null)
 
-  const publish = useCallback(
-    async (next: EventsData, successText: string) => {
-      if (!loadGithubSettings().token) {
-        setErr('Access Token yok. Duyurular sekmesinden bir kez kaydedin.')
-        return false
-      }
-      setBusy(true)
-      setMsg(null)
-      setErr(null)
-      try {
-        onChange(next)
-        await onPublish(next)
-        setMsg(successText)
-        return true
-      } catch (error) {
-        setErr(error instanceof Error ? error.message : 'Yayın başarısız.')
-        return false
-      } finally {
-        setBusy(false)
-      }
-    },
-    [onChange, onPublish],
-  )
-
-  function schedulePublish(next: EventsData) {
-    onChange(next)
-    if (editTimer.current) window.clearTimeout(editTimer.current)
-    editTimer.current = window.setTimeout(() => {
-      void publish(next, 'Etkinlik değişiklikleri otomatik yayınlandı.')
-    }, 1200)
+  async function publishImmediate(next: EventsData, successText: string) {
+    if (!loadGithubSettings().token) {
+      setErr('Access Token yok. Duyurular sekmesinden bir kez kaydedin.')
+      return false
+    }
+    setBusy(true)
+    setMsg(null)
+    setErr(null)
+    try {
+      await onPublishNow(next, successText)
+      setMsg(successText)
+      return true
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : 'Yayın başarısız.')
+      return false
+    } finally {
+      setBusy(false)
+    }
   }
 
   function updateItem(id: string, patch: Partial<EventItem>) {
-    schedulePublish({
+    onChange({
       ...data,
       updatedAt: new Date().toISOString(),
       items: data.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
@@ -91,7 +78,7 @@ export function EtkinliklerAdmin({
       updatedAt: new Date().toISOString(),
       items: [...data.items, item],
     }
-    const ok = await publish(next, 'Etkinlik eklendi ve canlıya yayınlandı.')
+    const ok = await publishImmediate(next, 'Etkinlik eklendi ve canlıya yayınlandı.')
     if (ok) {
       setDraft({
         title: '',
@@ -221,7 +208,7 @@ export function EtkinliklerAdmin({
                 disabled={busy}
                 onClick={() => {
                   if (!confirm('Bu etkinlik silinsin mi? Canlı siteden de kalkacak.')) return
-                  void publish(
+                  void publishImmediate(
                     {
                       updatedAt: new Date().toISOString(),
                       items: data.items.filter((x) => x.id !== item.id),

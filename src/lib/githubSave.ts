@@ -189,15 +189,24 @@ async function pushAdminDataUnlocked(
   await commitFilesWithRetry(settings, 'gh-pages', liveFiles, message)
 }
 
+export type AdminDataFile = { path: string; data: unknown }
+
+/**
+ * Dosya listesi veya fabrika. Fabrika kuyruk sırası gelince çalışır —
+ * böylece eski snapshot canlı veriyi ezmez.
+ */
 export async function pushAdminData(
   settings: GithubSettings,
-  files: { path: string; data: unknown }[],
+  filesOrFactory: AdminDataFile[] | (() => AdminDataFile[]),
 ) {
   if (!settings.owner || !settings.repo || !settings.token) {
     throw new Error('GitHub kullanıcı adı, depo adı ve erişim anahtarı gerekli.')
   }
 
-  const run = publishQueue.catch(() => undefined).then(() => pushAdminDataUnlocked(settings, files))
+  const run = publishQueue.catch(() => undefined).then(() => {
+    const files = typeof filesOrFactory === 'function' ? filesOrFactory() : filesOrFactory
+    return pushAdminDataUnlocked(settings, files)
+  })
   publishQueue = run.then(
     () => undefined,
     () => undefined,

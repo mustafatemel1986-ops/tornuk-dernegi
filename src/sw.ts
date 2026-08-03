@@ -122,6 +122,9 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'CHECK_DUYURULAR') {
     event.waitUntil(checkDuyurular())
   }
+  if (event.data?.type === 'SET_LAST_DUYURU_ID' && typeof event.data.id === 'string') {
+    event.waitUntil(setLastId(event.data.id))
+  }
   if (event.data?.type === 'PURGE_DATA_CACHE') {
     event.waitUntil(purgeDataJsonCaches())
   }

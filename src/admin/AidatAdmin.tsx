@@ -18,6 +18,10 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function nowIso() {
+  return new Date().toISOString()
+}
+
 function currentMonthKey() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -60,7 +64,7 @@ export function AidatAdmin({
   function updateMember(idHash: string, patch: Partial<MemberRecord>) {
     onChange({
       ...data,
-      updatedAt: todayIso(),
+      updatedAt: nowIso(),
       members: data.members.map((m) => {
         if (m.idHash !== idHash) return m
         const merged = { ...m, ...patch }
@@ -176,7 +180,7 @@ export function AidatAdmin({
     const year = currentYear()
     onChange({
       ...data,
-      updatedAt: todayIso(),
+      updatedAt: nowIso(),
       members: [
         ...data.members,
         {
@@ -257,7 +261,7 @@ export function AidatAdmin({
               onChange({
                 ...data,
                 monthlyFee: Number(e.target.value) || 0,
-                updatedAt: todayIso(),
+                updatedAt: nowIso(),
               })
             }
           />
@@ -497,7 +501,7 @@ export function AidatAdmin({
                           if (confirm('Bu üyeyi listeden silmek istiyor musunuz?')) {
                             onChange({
                               ...data,
-                              updatedAt: todayIso(),
+                              updatedAt: nowIso(),
                               members: data.members.filter((m) => m.idHash !== member.idHash),
                             })
                             setSelectedId(null)

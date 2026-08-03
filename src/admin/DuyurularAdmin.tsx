@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { loadGithubSettings, saveGithubSettings } from '../lib/githubSave'
-import { publishDuyuruToNtfy } from '../lib/ntfyPush'
+import { publishDuyuruToNtfy, waitForLiveDuyuru } from '../lib/ntfyPush'
 import type { Announcement, AnnouncementsData } from '../types'
 
 function todayIso() {
@@ -20,11 +20,13 @@ function makeId(title: string) {
 export function DuyurularAdmin({
   data,
   onChange,
-  onPublish,
+  onPublishNow,
 }: {
   data: AnnouncementsData
+  /** Düzenleme — üst bileşen debounce ile yayınlar */
   onChange: (next: AnnouncementsData) => void
-  onPublish: (next: AnnouncementsData) => Promise<void>
+  /** Ekle / sil / sıra — hemen yayın */
+  onPublishNow: (next: AnnouncementsData, successText: string) => Promise<void>
 }) {
   const [draft, setDraft] = useState({
     title: '',
@@ -37,43 +39,38 @@ export function DuyurularAdmin({
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const editTimer = useRef<number | null>(null)
 
   const hasToken = useMemo(() => setupDone && Boolean(loadGithubSettings().token), [setupDone, busy])
 
-  const publish = useCallback(
-    async (next: AnnouncementsData, successText: string): Promise<boolean> => {
-      if (!loadGithubSettings().token) {
-        setSetupDone(false)
-        setErr('Önce Access Token’ı bir kez kaydedin (aşağıdaki kutu).')
-        return false
-      }
+  async function publishImmediate(next: AnnouncementsData, successText: string): Promise<boolean> {
+    if (!loadGithubSettings().token) {
+      setSetupDone(false)
+      setErr('Önce Access Token’ı bir kez kaydedin (aşağıdaki kutu).')
+      return false
+    }
 
-      setBusy(true)
-      setMsg(null)
-      setErr(null)
-      try {
-        onChange(next)
-        await onPublish(next)
-        setMsg(successText)
-        return true
-      } catch (error) {
-        const text = error instanceof Error ? error.message : 'Yayın başarısız.'
-        setErr(text)
-        if (
-          text.toLowerCase().includes('token') ||
-          text.includes('401') ||
-          text.includes('Bad credentials')
-        ) {
-          setSetupDone(false)
-        }
-        return false
-      } finally {
-        setBusy(false)
+    setBusy(true)
+    setMsg(null)
+    setErr(null)
+    try {
+      await onPublishNow(next, successText)
+      setMsg(successText)
+      return true
+    } catch (error) {
+      const text = error instanceof Error ? error.message : 'Yayın başarısız.'
+      setErr(text)
+      if (
+        text.toLowerCase().includes('token') ||
+        text.includes('401') ||
+        text.includes('Bad credentials')
+      ) {
+        setSetupDone(false)
       }
-    },
-    [onChange, onPublish],
-  )
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
 
   function saveTokenOnce() {
     const token = tokenInput.trim()
@@ -87,16 +84,8 @@ export function DuyurularAdmin({
     setMsg('Token kaydedildi. Artık “Duyuru ekle” canlıya hemen yayınlar.')
   }
 
-  function schedulePublish(next: AnnouncementsData) {
-    onChange(next)
-    if (editTimer.current) window.clearTimeout(editTimer.current)
-    editTimer.current = window.setTimeout(() => {
-      void publish(next, 'Değişiklikler otomatik yayınlandı.')
-    }, 1200)
-  }
-
   function updateItem(id: string, patch: Partial<Announcement>) {
-    schedulePublish({
+    onChange({
       ...data,
       updatedAt: new Date().toISOString(),
       items: data.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
@@ -116,17 +105,30 @@ export function DuyurularAdmin({
       updatedAt: new Date().toISOString(),
       items: [item, ...data.items],
     }
-    const ok = await publish(next, 'Duyuru eklendi ve canlıya yayınlandı.')
-    if (ok) {
-      setDraft({ title: '', summary: '', body: '', date: todayIso() })
-      try {
-        await publishDuyuruToNtfy({ title: item.title, summary: item.summary })
-        setMsg('Duyuru yayınlandı. Üyelere anlık bildirim de gönderildi.')
-      } catch {
+    const ok = await publishImmediate(next, 'Duyuru eklendi ve canlıya yayınlandı.')
+    if (!ok) return
+
+    setDraft({ title: '', summary: '', body: '', date: todayIso() })
+
+    // Bildirim: önce canlı JSON’da görünsün, sonra ntfy (liste–bildirim uyumsuzluğu olmasın)
+    try {
+      const live = await waitForLiveDuyuru(item.id)
+      if (live) {
+        await publishDuyuruToNtfy({
+          id: item.id,
+          title: item.title,
+          summary: item.summary,
+        })
+        setMsg('Duyuru yayınlandı. Üyelere anlık bildirim gönderildi.')
+      } else {
         setMsg(
-          'Duyuru yayınlandı. Anlık bildirim gönderilemedi; üyeler uygulamayı açınca görür.',
+          'Duyuru yayınlandı. Canlı site biraz gecikebilir; üyeler yenileyince görür. Bildirim şimdilik atlandı.',
         )
       }
+    } catch {
+      setMsg(
+        'Duyuru yayınlandı. Anlık bildirim gönderilemedi; üyeler uygulamayı açınca görür.',
+      )
     }
   }
 
@@ -136,7 +138,7 @@ export function DuyurularAdmin({
       updatedAt: new Date().toISOString(),
       items: data.items.filter((x) => x.id !== id),
     }
-    await publish(next, 'Duyuru silindi ve yayınlandı.')
+    await publishImmediate(next, 'Duyuru silindi ve yayınlandı.')
   }
 
   async function moveTop(id: string) {
@@ -146,7 +148,7 @@ export function DuyurularAdmin({
       updatedAt: new Date().toISOString(),
       items: [item, ...data.items.filter((x) => x.id !== id)],
     }
-    await publish(next, 'Sıra güncellendi ve yayınlandı.')
+    await publishImmediate(next, 'Sıra güncellendi ve yayınlandı.')
   }
 
   return (

@@ -1,4 +1,4 @@
-/** Ücretsiz anlık bildirim kanalı (uygulama kapalıyken de çalışır). */
+/** Ücretsiz anlık bildirim kanalı (uygulama açıkken EventSource ile). */
 export const NTFY_TOPIC = 'tornuk_dernegi_gumushane_duyuru'
 
 export function getNtfySubscribeUrl() {
@@ -9,11 +9,37 @@ export function getNtfyDeepLink() {
   return `ntfy://ntfy.sh/${NTFY_TOPIC}`
 }
 
+async function sleep(ms: number) {
+  await new Promise((r) => window.setTimeout(r, ms))
+}
+
+/** Canlı Pages JSON’da duyuru görünene kadar bekle (CDN gecikmesi). */
+export async function waitForLiveDuyuru(id: string, timeoutMs = 60000): Promise<boolean> {
+  const url = `https://mustafatemel1986-ops.github.io/tornuk-dernegi/data/duyurular.json`
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store' })
+      if (res.ok) {
+        const data = (await res.json()) as { items?: { id: string }[] }
+        if (data.items?.some((item) => item.id === id)) return true
+      }
+    } catch {
+      // ağ hatası — tekrar dene
+    }
+    await sleep(2500)
+  }
+  return false
+}
+
 export async function publishDuyuruToNtfy(item: {
+  id?: string
   title: string
   summary: string
 }): Promise<void> {
-  const click = `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=duyurular&r=${Date.now()}`
+  const click = `https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=duyurular&r=${Date.now()}${
+    item.id ? `&duyuru=${encodeURIComponent(item.id)}` : ''
+  }`
   const res = await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
     method: 'POST',
     headers: {

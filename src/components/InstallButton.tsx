@@ -27,8 +27,12 @@ export function InstallButton() {
       setDeferred(null)
       setGuide(null)
       await trackAppInstall()
-      // İndirme biter bitmez bildirim izni
-      await enableNotificationsAfterInstall()
+      // accepted + appinstalled çift tetiklenmesin
+      const onceKey = 'tornuk-notify-after-install'
+      if (!sessionStorage.getItem(onceKey)) {
+        sessionStorage.setItem(onceKey, '1')
+        await enableNotificationsAfterInstall()
+      }
     }
 
     window.addEventListener('beforeinstallprompt', onBeforeInstall)
@@ -56,7 +60,11 @@ export function InstallButton() {
         if (choice.outcome === 'accepted') {
           setInstalled(true)
           await trackAppInstall()
-          await enableNotificationsAfterInstall()
+          const onceKey = 'tornuk-notify-after-install'
+          if (!sessionStorage.getItem(onceKey)) {
+            sessionStorage.setItem(onceKey, '1')
+            await enableNotificationsAfterInstall()
+          }
         }
         setDeferred(null)
       } finally {
