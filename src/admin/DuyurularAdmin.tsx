@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { loadGithubSettings, saveGithubSettings } from '../lib/githubSave'
 import type { Announcement, AnnouncementsData } from '../types'
 
 function todayIso() {
@@ -12,7 +13,6 @@ function makeId(title: string) {
     .trim()
     .replace(/\s+/g, '-')
     .slice(0, 40)
-  // Her eklemede benzersiz ID — aynı başlık bildirimi engellemesin
   return `duyuru-${todayIso()}-${Date.now().toString(36)}-${slug || 'yeni'}`
 }
 
@@ -31,9 +31,13 @@ export function DuyurularAdmin({
     body: '',
     date: todayIso(),
   })
+  const [tokenInput, setTokenInput] = useState(() => loadGithubSettings().token)
+  const [setupDone, setSetupDone] = useState(() => Boolean(loadGithubSettings().token))
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+
+  const hasToken = useMemo(() => setupDone && Boolean(loadGithubSettings().token), [setupDone, busy])
 
   function updateItem(id: string, patch: Partial<Announcement>) {
     onChange({
@@ -54,29 +58,25 @@ export function DuyurularAdmin({
     }
   }
 
-  function addItem() {
-    const item = buildItem()
-    if (!item) return
-    onChange({
-      updatedAt: new Date().toISOString(),
-      items: [item, ...data.items],
-    })
-    setDraft({ title: '', summary: '', body: '', date: todayIso() })
-    setMsg('Taslağa eklendi. Üyelere gitmesi için “Ekle ve yayınla” veya Kaydet sekmesini kullanın.')
-    setErr(null)
-  }
-
-  async function addAndPublish() {
-    const item = buildItem()
-    if (!item) return
-    if (!onPublish) {
-      addItem()
+  function saveTokenOnce() {
+    const token = tokenInput.trim()
+    if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+      setErr('Geçerli bir GitHub token yapıştırın (genelde ghp_ ile başlar).')
       return
     }
+    const settings = loadGithubSettings()
+    saveGithubSettings({ ...settings, token })
+    setSetupDone(true)
+    setErr(null)
+    setMsg('Kurulum tamam. Bundan sonra sadece duyuru yazıp Yayınla’ya basmanız yeterli.')
+  }
 
-    const next: AnnouncementsData = {
-      updatedAt: new Date().toISOString(),
-      items: [item, ...data.items],
+  async function publish(next: AnnouncementsData, successText: string): Promise<boolean> {
+    if (!onPublish) return false
+    if (!loadGithubSettings().token) {
+      setSetupDone(false)
+      setErr('Önce aşağıdaki kutuya Access Token’ı bir kez yapıştırın.')
+      return false
     }
 
     setBusy(true)
@@ -85,15 +85,39 @@ export function DuyurularAdmin({
     try {
       onChange(next)
       await onPublish(next)
-      setDraft({ title: '', summary: '', body: '', date: todayIso() })
-      setMsg(
-        'Canlı siteye yayınlandı. Telefonda Duyurular sekmesini açın veya uygulamayı yeniden açın — birkaç saniye içinde görünür.',
-      )
+      setMsg(successText)
+      return true
     } catch (error) {
-      setErr(error instanceof Error ? error.message : 'Yayın başarısız.')
+      const text = error instanceof Error ? error.message : 'Yayın başarısız.'
+      setErr(text)
+      if (text.toLowerCase().includes('token') || text.includes('401') || text.includes('Bad credentials')) {
+        setSetupDone(false)
+      }
+      return false
     } finally {
       setBusy(false)
     }
+  }
+
+  async function addAndPublish() {
+    const item = buildItem()
+    if (!item) return
+    const next: AnnouncementsData = {
+      updatedAt: new Date().toISOString(),
+      items: [item, ...data.items],
+    }
+    const ok = await publish(
+      next,
+      'Yayınlandı. Üyelerin telefonunda Duyurular birkaç saniye içinde güncellenir.',
+    )
+    if (ok) setDraft({ title: '', summary: '', body: '', date: todayIso() })
+  }
+
+  async function publishCurrent() {
+    await publish(
+      { ...data, updatedAt: new Date().toISOString() },
+      'Mevcut duyurular yayınlandı.',
+    )
   }
 
   function moveTop(id: string) {
@@ -109,9 +133,41 @@ export function DuyurularAdmin({
     <div className="admin-panel">
       <h2>Duyurular</h2>
       <p className="hint">
-        Üyelere bildirim için <strong>Ekle ve yayınla</strong> kullanın (Access Token Kaydet
-        sekmesinde bir kez kayıtlı olmalı). Sadece “Duyuru ekle” yalnızca bu tarayıcıda kalır.
+        Bilgisayar veya telefondan bu paneli açıp duyuru yazın → <strong>Yayınla</strong>. Üyeler
+        aynı uygulamada görür. Access Token yalnızca <strong>bu cihazda bir kez</strong> girilir;
+        her duyuruda tekrar istenmez.
       </p>
+
+      {!hasToken && (
+        <div className="admin-panel" style={{ boxShadow: 'none', border: '1px solid #d8b4a0' }}>
+          <h3 className="panel-title">İlk kurulum (bir kez)</h3>
+          <ol className="hint" style={{ paddingLeft: '1.2rem' }}>
+            <li>
+              <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer">
+                Bu linke tıklayın
+              </a>{' '}
+              → Generate new token (classic)
+            </li>
+            <li>
+              Sadece <code>repo</code> işaretleyin → Generate → <code>ghp_...</code> kodunu kopyalayın
+            </li>
+            <li>Aşağıya yapıştırıp Kaydet’e basın — bir daha sormaz (bu tarayıcıda)</li>
+          </ol>
+          <label className="admin-label">
+            Access Token
+            <input
+              type="password"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value.trim())}
+              placeholder="ghp_..."
+              autoComplete="off"
+            />
+          </label>
+          <button type="button" className="btn btn-primary" onClick={saveTokenOnce}>
+            Token’ı kaydet
+          </button>
+        </div>
+      )}
 
       <div className="admin-fields">
         <label className="admin-label">
@@ -143,19 +199,22 @@ export function DuyurularAdmin({
             onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))}
           />
         </label>
-        <div className="admin-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy || !draft.title.trim() || !draft.summary.trim()}
-            onClick={() => void addAndPublish()}
-          >
-            {busy ? 'Yayınlanıyor…' : 'Ekle ve yayınla'}
-          </button>
-          <button type="button" className="btn btn-ghost" disabled={busy} onClick={addItem}>
-            Sadece taslağa ekle
-          </button>
-        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy || !draft.title.trim() || !draft.summary.trim()}
+          onClick={() => void addAndPublish()}
+        >
+          {busy ? 'Yayınlanıyor…' : 'Yayınla'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={busy}
+          onClick={() => void publishCurrent()}
+        >
+          Listedeki değişiklikleri yayınla
+        </button>
         {msg && <p className="admin-msg ok">{msg}</p>}
         {err && <p className="admin-msg err">{err}</p>}
       </div>

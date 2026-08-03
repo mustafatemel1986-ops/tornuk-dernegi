@@ -113,8 +113,8 @@ export function AdminApp() {
         <div>
           <h1>Yönetim paneli</h1>
           <p className="hint">
-            Üyelerin telefonunda görünmesi için duyuruyu <strong>Ekle ve yayınla</strong> ile
-            GitHub’a basmanız gerekir. Sadece eklemek yetmez.
+            Telefon veya bilgisayardan bu panele girip duyuru/aidat yönetin. Token’ı her cihazda bir
+            kez girersiniz; sonra sadece <strong>Yayınla</strong> yeter.
           </p>
         </div>
         <div className="admin-actions">
