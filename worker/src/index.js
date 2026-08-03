@@ -211,13 +211,7 @@ function assertSafeFiles(files) {
     if (file.data == null || typeof file.data !== 'object') {
       throw new Error(`Geçersiz veri: ${file.path}`)
     }
-    // Boş liste ile canlıyı silmeyi engelle
-    if (file.path.includes('duyurular') || file.path.includes('etkinlikler')) {
-      const items = file.data.items
-      if (Array.isArray(items) && items.length === 0) {
-        throw new Error('Boş liste yayınlanamaz (veri koruması).')
-      }
-    }
+    // Üye listesini yanlışlıkla boş yayınlamayı engelle (duyuru/etkinlik silinebilir)
     if (file.path.includes('uyeler')) {
       const members = file.data.members
       if (Array.isArray(members) && members.length === 0) {

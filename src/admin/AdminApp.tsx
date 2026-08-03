@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getAdminSessionPin, isAdminLoggedIn, setAdminLoggedIn } from '../lib/adminAuth'
+import { isAdminLoggedIn, setAdminLoggedIn, getAdminSessionPin } from '../lib/adminAuth'
 import { pushAdminData } from '../lib/githubSave'
 import {
   clearLiveData,
-  getLiveAnnouncements,
-  getLiveEvents,
-  getLiveMembers,
-  pickNewerData,
   setLiveAnnouncements,
   setLiveEvents,
   setLiveMembers,
@@ -75,54 +71,20 @@ export function AdminApp() {
         ])
         if (cancelled) return
 
-        const membersPick = pickNewerData(getLiveMembers(), m)
-        const duyuruPick = pickNewerData(getLiveAnnouncements(), d)
-        const eventsPick = pickNewerData(getLiveEvents(), e)
-
-        // Boş yerel taslak, dolu sunucuyu ezmesin
-        const membersData =
-          membersPick.fromLive &&
-          membersPick.data.members.length === 0 &&
-          m.members.length > 0
-            ? m
-            : membersPick.data
-        const duyuruData =
-          duyuruPick.fromLive &&
-          duyuruPick.data.items.length === 0 &&
-          d.items.length > 0
-            ? d
-            : duyuruPick.data
-        const eventsData =
-          eventsPick.fromLive &&
-          eventsPick.data.items.length === 0 &&
-          e.items.length > 0
-            ? e
-            : eventsPick.data
-
-        setMembers(membersData)
-        setAnnouncements(duyuruData)
-        setEvents(eventsData)
-        dataRef.current = {
-          members: membersData,
-          announcements: duyuruData,
-          events: eventsData,
-        }
+        // Sunucu esas: eski yerel taslak “sildim ama sitede duruyor” yanılsaması yaratıyordu
+        setMembers(m)
+        setAnnouncements(d)
+        setEvents(e)
+        dataRef.current = { members: m, announcements: d, events: e }
+        setLiveMembers(m)
+        setLiveAnnouncements(d)
+        setLiveEvents(e)
         lastGoodRef.current = {
           membersCount: m.members.length,
           announcementsCount: d.items.length,
           eventsCount: e.items.length,
         }
-
-        const usingDraft =
-          (membersPick.fromLive && membersData === membersPick.data) ||
-          (duyuruPick.fromLive && duyuruData === duyuruPick.data) ||
-          (eventsPick.fromLive && eventsData === eventsPick.data)
-        setDirty(usingDraft)
-        if (usingDraft) {
-          setDraftNote(
-            'Yayınlanmamış yerel taslak vardı. Değişiklikler otomatik yayınlanır; veya Ayarlar → sunucudan yükle.',
-          )
-        }
+        setDirty(false)
       } catch {
         if (!cancelled) setLoadError('Yönetim verileri yüklenemedi.')
       }
@@ -150,16 +112,7 @@ export function AdminApp() {
         }
 
         const good = lastGoodRef.current
-        if (snap.announcements.items.length === 0 && good.announcementsCount > 0) {
-          throw new Error(
-            'Boş duyuru listesi canlıyı silmez. Ayarlar → sunucudan yükle ile yenileyin.',
-          )
-        }
-        if (snap.events.items.length === 0 && good.eventsCount > 0) {
-          throw new Error(
-            'Boş etkinlik listesi canlıyı silmez. Ayarlar → sunucudan yükle ile yenileyin.',
-          )
-        }
+        // Üye listesini boş yayınlama (duyuru/etkinlik bilinçli silinebilir)
         if (snap.members.members.length === 0 && good.membersCount > 0) {
           throw new Error(
             'Boş üye listesi canlıyı silmez. Ayarlar → sunucudan yükle ile yenileyin.',
@@ -304,8 +257,9 @@ export function AdminApp() {
             href={import.meta.env.BASE_URL}
             onClick={(e) => {
               e.preventDefault()
+              // Admin’den çıkınca taze üye verisi yüklensin
               window.location.hash = ''
-              window.location.href = import.meta.env.BASE_URL
+              window.location.href = `${import.meta.env.BASE_URL}?r=${Date.now()}`
             }}
           >
             Siteye dön
@@ -353,11 +307,11 @@ export function AdminApp() {
           data={announcements}
           onChange={patchAnnouncements}
           onPublishNow={async (next, successText) => {
-            setAnnouncements(next)
-            setLiveAnnouncements(next)
             dataRef.current = { ...dataRef.current, announcements: next }
             setDirty(true)
             await flushPublish(successText, ['public/data/duyurular.json'])
+            setAnnouncements(next)
+            setLiveAnnouncements(next)
           }}
         />
       )}
@@ -366,11 +320,11 @@ export function AdminApp() {
           data={events}
           onChange={patchEvents}
           onPublishNow={async (next, successText) => {
-            setEvents(next)
-            setLiveEvents(next)
             dataRef.current = { ...dataRef.current, events: next }
             setDirty(true)
             await flushPublish(successText, ['public/data/etkinlikler.json'])
+            setEvents(next)
+            setLiveEvents(next)
           }}
         />
       )}

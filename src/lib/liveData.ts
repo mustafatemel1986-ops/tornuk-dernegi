@@ -52,10 +52,10 @@ export function clearLiveData() {
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${import.meta.env.BASE_URL}${path}?t=${Date.now()}`, {
+  const res = await fetch(`${import.meta.env.BASE_URL}${path}?t=${Date.now()}&r=${Math.random()}`, {
     cache: 'no-store',
     headers: {
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
       Pragma: 'no-cache',
     },
   })

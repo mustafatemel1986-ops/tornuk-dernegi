@@ -10,8 +10,9 @@
     "preview": "vite preview",
     "generate-data": "node scripts/generate-data.mjs",
     "generate-icons": "node scripts/generate-icons.mjs",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "predeploy": "npm run build && node scripts/sync-live-data.mjs",
+    "deploy": "gh-pages -d dist",
+    "sync-data": "node scripts/sync-live-data.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
