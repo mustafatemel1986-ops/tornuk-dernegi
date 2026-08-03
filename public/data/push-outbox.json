@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-03T14:43:43.820Z",
+  "updatedAt": "2026-08-03T15:43:28.136Z",
   "items": [
     {
       "id": "duyuru-2026-08-03-msd8ivvv-android",
@@ -13,7 +13,7 @@
       "id": "etk-2026-08-03-msd8j8py-bildirim-etkinlik",
       "kind": "etkinlik",
       "title": "Bildirim etkinlik",
-      "body": "2026-08-03 ÃÂÃÂ· 14:00 ÃÂÃÂ· Dernek Lokali",
+      "body": "2026-08-03 ÃÂÃÂÃÂÃÂ· 14:00 ÃÂÃÂÃÂÃÂ· Dernek Lokali",
       "url": "https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=etkinlikler&r=1785761913310&etkinlik=etk-2026-08-03-msd8j8py-bildirim-etkinlik",
       "createdAt": "2026-08-03T12:58:33.310Z"
     },
@@ -26,10 +26,10 @@
       "createdAt": "2026-08-03T14:05:07.488Z"
     },
     {
-      "id": "duyuru-2026-08-03-msdc9adz-gÃ¶rkem",
+      "id": "duyuru-2026-08-03-msdc9adz-gÃÂ¶rkem",
       "kind": "duyuru",
-      "title": "GÃ¶rkem",
-      "body": "GÃ¶rkme",
+      "title": "GÃÂ¶rkem",
+      "body": "GÃÂ¶rkme",
       "url": "https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=duyurular&r=1785768170143&duyuru=duyuru-2026-08-03-msdc9adz-g%C3%B6rkem",
       "createdAt": "2026-08-03T14:42:50.143Z"
     },
@@ -40,6 +40,14 @@
       "body": "Denem",
       "url": "https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=duyurular&r=1785768223356&duyuru=duyuru-2026-08-03-msdcagmy-denem",
       "createdAt": "2026-08-03T14:43:43.356Z"
+    },
+    {
+      "id": "etk-2026-08-03-msdefa2i-yönetim-toplantıdı",
+      "kind": "etkinlik",
+      "title": "Yönetim Toplantıdı",
+      "body": "Üyeletimiz istaşare",
+      "url": "https://mustafatemel1986-ops.github.io/tornuk-dernegi/?tab=etkinlikler&r=1785771807655&etkinlik=etk-2026-08-03-msdefa2i-y%C3%B6netim-toplant%C4%B1d%C4%B1",
+      "createdAt": "2026-08-03T15:43:27.655Z"
     }
   ]
 }
