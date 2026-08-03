@@ -134,7 +134,7 @@ export function AdminApp() {
     }
   }, [authed, reloadToken])
 
-  const publishNow = useCallback(async (successText?: string) => {
+  const publishNow = useCallback(async (successText?: string, onlyPaths?: string[]) => {
     const pin = getAdminSessionPin()
     if (!pin) {
       throw new Error('Oturum süresi dolmuş. Yönetim paneline tekrar giriş yapın.')
@@ -143,7 +143,6 @@ export function AdminApp() {
     setPublishNote(null)
 
     try {
-      // Kuyruk işi ÇALIŞIRKEN dataRef okunur — eski snapshot ile üzerine yazılmaz
       await pushAdminData(pin, () => {
         const snap = dataRef.current
         if (!snap.members || !snap.announcements || !snap.events) {
@@ -167,11 +166,14 @@ export function AdminApp() {
           )
         }
 
-        return [
-          { path: 'public/data/uyeler.json', data: snap.members },
-          { path: 'public/data/duyurular.json', data: snap.announcements },
-          { path: 'public/data/etkinlikler.json', data: snap.events },
+        const all = [
+          { path: 'public/data/uyeler.json', data: snap.members as unknown },
+          { path: 'public/data/duyurular.json', data: snap.announcements as unknown },
+          { path: 'public/data/etkinlikler.json', data: snap.events as unknown },
         ]
+        if (!onlyPaths?.length) return all
+        const filtered = all.filter((f) => onlyPaths.includes(f.path))
+        return filtered.length ? filtered : all
       })
 
       const done = dataRef.current
@@ -197,13 +199,13 @@ export function AdminApp() {
   }, [])
 
   const schedulePublish = useCallback(
-    (delayMs = 1600, successText?: string) => {
+    (delayMs = 700, successText?: string, onlyPaths?: string[]) => {
       setDirty(true)
       if (publishTimer.current) window.clearTimeout(publishTimer.current)
       publishTimer.current = window.setTimeout(() => {
         publishTimer.current = null
-        void publishNow(successText || 'Değişiklikler otomatik yayınlandı.').catch((error) =>
-          setDraftNote(error instanceof Error ? error.message : 'Yayın başarısız.'),
+        void publishNow(successText || 'Değişiklikler otomatik yayınlandı.', onlyPaths).catch(
+          (error) => setDraftNote(error instanceof Error ? error.message : 'Yayın başarısız.'),
         )
       }, delayMs)
     },
@@ -211,12 +213,12 @@ export function AdminApp() {
   )
 
   const flushPublish = useCallback(
-    async (successText?: string) => {
+    async (successText?: string, onlyPaths?: string[]) => {
       if (publishTimer.current) {
         window.clearTimeout(publishTimer.current)
         publishTimer.current = null
       }
-      await publishNow(successText)
+      await publishNow(successText, onlyPaths)
     },
     [publishNow],
   )
@@ -234,21 +236,27 @@ export function AdminApp() {
     setMembers(next)
     setLiveMembers(next)
     dataRef.current = { ...dataRef.current, members: next }
-    schedulePublish(2500, 'Aidat değişiklikleri otomatik yayınlandı.')
+    schedulePublish(900, 'Aidat değişiklikleri otomatik yayınlandı.', [
+      'public/data/uyeler.json',
+    ])
   }
 
   function patchAnnouncements(next: AnnouncementsData) {
     setAnnouncements(next)
     setLiveAnnouncements(next)
     dataRef.current = { ...dataRef.current, announcements: next }
-    schedulePublish(1600, 'Duyuru değişiklikleri otomatik yayınlandı.')
+    schedulePublish(700, 'Duyuru değişiklikleri otomatik yayınlandı.', [
+      'public/data/duyurular.json',
+    ])
   }
 
   function patchEvents(next: EventsData) {
     setEvents(next)
     setLiveEvents(next)
     dataRef.current = { ...dataRef.current, events: next }
-    schedulePublish(1600, 'Etkinlik değişiklikleri otomatik yayınlandı.')
+    schedulePublish(700, 'Etkinlik değişiklikleri otomatik yayınlandı.', [
+      'public/data/etkinlikler.json',
+    ])
   }
 
   if (!authed) {
@@ -349,7 +357,7 @@ export function AdminApp() {
             setLiveAnnouncements(next)
             dataRef.current = { ...dataRef.current, announcements: next }
             setDirty(true)
-            await flushPublish(successText)
+            await flushPublish(successText, ['public/data/duyurular.json'])
           }}
         />
       )}
@@ -362,7 +370,7 @@ export function AdminApp() {
             setLiveEvents(next)
             dataRef.current = { ...dataRef.current, events: next }
             setDirty(true)
-            await flushPublish(successText)
+            await flushPublish(successText, ['public/data/etkinlikler.json'])
           }}
         />
       )}

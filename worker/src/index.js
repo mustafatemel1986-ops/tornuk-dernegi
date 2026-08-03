@@ -99,7 +99,39 @@ async function sleep(ms) {
   await new Promise((r) => setTimeout(r, ms))
 }
 
+/** Tek dosya: Contents API (daha az tur). */
+async function commitSingleFile(token, branch, file, message) {
+  const base = `https://api.github.com/repos/${OWNER}/${REPO}`
+  const url = `${base}/contents/${file.path}?ref=${encodeURIComponent(branch)}`
+  let sha
+  const getRes = await fetch(url, { headers: githubHeaders(token) })
+  if (getRes.ok) {
+    const existing = await getRes.json()
+    sha = existing.sha
+  } else if (getRes.status !== 404) {
+    throw new Error(`${getRes.status} ${url}: ${await getRes.text()}`)
+  }
+
+  const put = await fetch(`${base}/contents/${file.path}`, {
+    method: 'PUT',
+    headers: { ...githubHeaders(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message,
+      content: toBase64Utf8(file.content),
+      branch,
+      ...(sha ? { sha } : {}),
+    }),
+  })
+  if (put.status === 409 || put.status === 422) throw new Error('CONFLICT')
+  if (!put.ok) throw new Error(`Dosya yazılamadı (${file.path}): ${await put.text()}`)
+}
+
 async function commitFilesOnBranch(token, branch, files, message) {
+  if (files.length === 1) {
+    await commitSingleFile(token, branch, files[0], message)
+    return
+  }
+
   const base = `https://api.github.com/repos/${OWNER}/${REPO}`
 
   const ref = await githubJson(
@@ -107,25 +139,26 @@ async function commitFilesOnBranch(token, branch, files, message) {
     token,
   )
   const latestCommitSha = ref.object.sha
-
   const latestCommit = await githubJson(`${base}/git/commits/${latestCommitSha}`, token)
 
-  const treeItems = []
-  for (const file of files) {
-    const blob = await githubJson(`${base}/git/blobs`, token, {
-      method: 'POST',
-      body: JSON.stringify({
-        content: toBase64Utf8(file.content),
-        encoding: 'base64',
-      }),
-    })
-    treeItems.push({
-      path: file.path,
-      mode: '100644',
-      type: 'blob',
-      sha: blob.sha,
-    })
-  }
+  // Blob’ları paralel oluştur — sırayla bekleme
+  const treeItems = await Promise.all(
+    files.map(async (file) => {
+      const blob = await githubJson(`${base}/git/blobs`, token, {
+        method: 'POST',
+        body: JSON.stringify({
+          content: toBase64Utf8(file.content),
+          encoding: 'base64',
+        }),
+      })
+      return {
+        path: file.path,
+        mode: '100644',
+        type: 'blob',
+        sha: blob.sha,
+      }
+    }),
+  )
 
   const tree = await githubJson(`${base}/git/trees`, token, {
     method: 'POST',
@@ -198,7 +231,7 @@ function assertSafeFiles(files) {
   }
 }
 
-async function handlePublish(request, env, origin) {
+async function handlePublish(request, env, origin, ctx) {
   if (!env.GITHUB_TOKEN || !env.ADMIN_PIN_HASH) {
     return json({ ok: false, error: 'Sunucu yapılandırması eksik.' }, 500, origin)
   }
@@ -241,8 +274,16 @@ async function handlePublish(request, env, origin) {
   }))
 
   try {
-    await commitFilesWithRetry(env.GITHUB_TOKEN, MAIN_BRANCH, mainFiles, message)
+    // Önce canlı dal (üyeler bunu görür) — cevap hızlı dönsün
     await commitFilesWithRetry(env.GITHUB_TOKEN, LIVE_BRANCH, liveFiles, message)
+    // main yedeği arka planda (cevap bekletmez)
+    if (typeof ctx !== 'undefined' && ctx?.waitUntil) {
+      ctx.waitUntil(
+        commitFilesWithRetry(env.GITHUB_TOKEN, MAIN_BRANCH, mainFiles, message).catch(() => {}),
+      )
+    } else {
+      await commitFilesWithRetry(env.GITHUB_TOKEN, MAIN_BRANCH, mainFiles, message)
+    }
     return json({ ok: true }, 200, origin)
   } catch (error) {
     return json(
@@ -257,7 +298,7 @@ async function handlePublish(request, env, origin) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || ''
 
     if (request.method === 'OPTIONS') {
@@ -266,7 +307,7 @@ export default {
 
     const url = new URL(request.url)
     if (request.method === 'POST' && (url.pathname === '/' || url.pathname === '/publish')) {
-      return handlePublish(request, env, origin)
+      return handlePublish(request, env, origin, ctx)
     }
 
     if (request.method === 'GET' && url.pathname === '/health') {

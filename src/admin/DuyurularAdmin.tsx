@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { publishDuyuruToNtfy, waitForLiveDuyuru } from '../lib/ntfyPush'
+import { publishDuyuruToNtfy } from '../lib/ntfyPush'
 import type { Announcement, AnnouncementsData } from '../types'
 
 function todayIso() {
@@ -77,23 +77,18 @@ export function DuyurularAdmin({
 
     setDraft({ title: '', summary: '', body: '', date: todayIso() })
 
-    try {
-      const live = await waitForLiveDuyuru(item.id)
-      if (live) {
-        await publishDuyuruToNtfy({
-          id: item.id,
-          title: item.title,
-          summary: item.summary,
-        })
-        setMsg('Duyuru yayınlandı. Üyelere anlık bildirim gönderildi.')
-      } else {
+    // Bildirim arka planda — CDN beklemesi UI’yi kilitlemesin
+    void publishDuyuruToNtfy({
+      id: item.id,
+      title: item.title,
+      summary: item.summary,
+    })
+      .then(() => setMsg('Duyuru yayınlandı. Üyelere anlık bildirim gönderildi.'))
+      .catch(() =>
         setMsg(
-          'Duyuru yayınlandı. Canlı site biraz gecikebilir; üyeler yenileyince görür. Bildirim şimdilik atlandı.',
-        )
-      }
-    } catch {
-      setMsg('Duyuru yayınlandı. Anlık bildirim gönderilemedi; üyeler uygulamayı açınca görür.')
-    }
+          'Duyuru yayınlandı. Anlık bildirim gönderilemedi; üyeler uygulamayı açınca görür.',
+        ),
+      )
   }
 
   async function removeItem(id: string) {
