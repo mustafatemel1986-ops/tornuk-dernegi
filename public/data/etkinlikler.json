@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-31",
+  "updatedAt": "2026-08-03T08:17:36.510Z",
   "items": [
     {
       "id": "etk-2026-08-genel-kurul",
@@ -16,14 +16,6 @@
       "time": "16:30",
       "place": "Dernek Lokali",
       "description": "Üyeler arası sohbet ve istişare toplantısı. Aileler de katılabilir."
-    },
-    {
-      "id": "etk-2026-09-picnic",
-      "title": "Geleneksel dernek pikniği",
-      "date": "2026-09-13",
-      "time": "10:00",
-      "place": "Belirlenecek mesire alanı",
-      "description": "Yıllık geleneksel piknik. Yer bilgisi duyurular bölümünden güncellenecektir."
     }
   ]
 }
