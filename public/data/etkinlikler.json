@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-03T14:10:14.287Z",
+  "updatedAt": "2026-08-03T14:10:18.531Z",
   "items": [
     {
       "id": "etk-2026-08-03-msd8j8py-bildirim-etkinlik",
@@ -32,14 +32,6 @@
       "time": "14:00",
       "place": "Dernek Lokali",
       "description": ""
-    },
-    {
-      "id": "etk-2026-08-03-msd5y94v-piknik",
-      "title": "Piknik",
-      "date": "2026-08-07",
-      "time": "14:00",
-      "place": "Dernek Lokali",
-      "description": "HAKJDBJAKJKNAKJDJKANKLASM"
     }
   ]
 }
