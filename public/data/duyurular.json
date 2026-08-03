@@ -1,6 +1,20 @@
 {
-  "updatedAt": "2026-07-31T14:30:16.505Z",
+  "updatedAt": "2026-08-03T07:24:10.179Z",
   "items": [
+    {
+      "id": "duyuru-2026-08-03-gata",
+      "title": "gata",
+      "summary": "gata",
+      "body": "gata",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-fasa",
+      "title": "fasa",
+      "summary": "fasa",
+      "body": "fasa",
+      "date": "2026-08-03"
+    },
     {
       "id": "duyuru-2026-07-31-denem",
       "title": "denem",
