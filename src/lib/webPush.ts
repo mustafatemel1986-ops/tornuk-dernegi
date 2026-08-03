@@ -37,8 +37,8 @@ export async function subscribeWebPush(): Promise<boolean> {
   let sub = await reg.pushManager.getSubscription()
   const cachedKey = localStorage.getItem(VAPID_CACHE_KEY)
 
-  // Anahtar değiştiyse eski abonelik FCM’de 403 verir — zorunlu yenile
-  if (sub && cachedKey && cachedKey !== publicKey) {
+  // Anahtar değiştiyse veya bilinmiyorsa eski abonelik FCM’de 403 verir — yenile
+  if (sub && cachedKey !== publicKey) {
     try {
       await fetch(`${PUBLISH_API_URL}/push/unsubscribe`, {
         method: 'POST',
