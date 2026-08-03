@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-03T14:10:09.937Z",
+  "updatedAt": "2026-08-03T14:10:14.287Z",
   "items": [
     {
       "id": "etk-2026-08-03-msd8j8py-bildirim-etkinlik",
@@ -40,14 +40,6 @@
       "time": "14:00",
       "place": "Dernek Lokali",
       "description": "HAKJDBJAKJKNAKJDJKANKLASM"
-    },
-    {
-      "id": "etk-2026-08-genel-kurul",
-      "title": "Olağan Genel Kurul",
-      "date": "2026-08-15",
-      "time": "14:00",
-      "place": "Dernek Lokali",
-      "description": "Faaliyet ve mali raporların okunması, yeni dönem yönetim seçimi."
     }
   ]
 }
