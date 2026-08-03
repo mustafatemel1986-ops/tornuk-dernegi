@@ -32,7 +32,17 @@ import { EtkinliklerPage } from './pages/EtkinliklerPage'
 import { HomePage } from './pages/HomePage'
 import { MenuPage } from './pages/MenuPage'
 import { subscribeWebPush } from './lib/webPush'
-import type { TabId } from './types'
+import type { MenuSectionId, TabId } from './types'
+
+function isMenuSection(value: string | null): value is MenuSectionId {
+  return (
+    value === 'ozet' ||
+    value === 'bilgi' ||
+    value === 'belgeler' ||
+    value === 'bagis' ||
+    value === 'sss'
+  )
+}
 
 function getInitialTab(): TabId {
   const params = new URLSearchParams(window.location.search)
@@ -49,8 +59,15 @@ function getInitialTab(): TabId {
   return 'ana'
 }
 
+function getInitialMenuSection(): MenuSectionId {
+  const params = new URLSearchParams(window.location.search)
+  const section = params.get('section')
+  return isMenuSection(section) ? section : 'ozet'
+}
+
 function MemberApp() {
   const [tab, setTab] = useState<TabId>(getInitialTab)
+  const [menuSection, setMenuSection] = useState<MenuSectionId>(getInitialMenuSection)
   const [duyuruBadge, setDuyuruBadge] = useState(false)
   const [askNotify, setAskNotify] = useState(false)
   const [notifyReady, setNotifyReady] = useState(() => getNotifyPreference())
@@ -62,8 +79,14 @@ function MemberApp() {
     const url = new URL(window.location.href)
     if (tab === 'ana') url.searchParams.delete('tab')
     else url.searchParams.set('tab', tab)
+
+    if (tab === 'menu' && menuSection !== 'ozet') {
+      url.searchParams.set('section', menuSection)
+    } else {
+      url.searchParams.delete('section')
+    }
     window.history.replaceState({}, '', url)
-  }, [tab])
+  }, [tab, menuSection])
 
   useEffect(() => {
     if (!isStandalone()) return
@@ -225,8 +248,9 @@ function MemberApp() {
     }
   }, [])
 
-  function handleTabChange(next: TabId) {
+  function handleTabChange(next: TabId, section?: MenuSectionId) {
     setTab(next)
+    if (next === 'menu') setMenuSection(section ?? 'ozet')
     if (next === 'duyurular') setDuyuruBadge(false)
   }
 
@@ -244,7 +268,9 @@ function MemberApp() {
         {tab === 'aidat' && <AidatPage />}
         {tab === 'duyurular' && <DuyurularPage />}
         {tab === 'etkinlikler' && <EtkinliklerPage />}
-        {tab === 'menu' && <MenuPage />}
+        {tab === 'menu' && (
+          <MenuPage section={menuSection} onSectionChange={setMenuSection} />
+        )}
       </main>
       <BottomNav active={tab} onChange={handleTabChange} duyuruBadge={duyuruBadge} />
     </div>

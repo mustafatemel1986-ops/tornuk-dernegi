@@ -10,13 +10,24 @@ import {
   setNotifyPreference,
 } from '../lib/notifications'
 import { subscribeWebPush, unsubscribeWebPush } from '../lib/webPush'
-import type { AssociationData } from '../types'
+import type { AssociationData, MenuSectionId } from '../types'
 
-type MenuSection = 'ozet' | 'bilgi' | 'belgeler' | 'bagis' | 'sss'
+const SECTIONS: { id: MenuSectionId; label: string }[] = [
+  { id: 'ozet', label: 'Özet' },
+  { id: 'bilgi', label: 'Bilgiler' },
+  { id: 'belgeler', label: 'Belgeler' },
+  { id: 'bagis', label: 'Bağış' },
+  { id: 'sss', label: 'SSS' },
+]
 
-export function MenuPage() {
+export function MenuPage({
+  section,
+  onSectionChange,
+}: {
+  section: MenuSectionId
+  onSectionChange: (section: MenuSectionId) => void
+}) {
   const [data, setData] = useState<AssociationData | null>(null)
-  const [section, setSection] = useState<MenuSection>('ozet')
   const [notifyOn, setNotifyOn] = useState(() => getNotifyPreference())
   const [notifyMsg, setNotifyMsg] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -109,20 +120,12 @@ export function MenuPage() {
       </header>
 
       <div className="chip-row">
-        {(
-          [
-            ['ozet', 'Özet'],
-            ['bilgi', 'Bilgiler'],
-            ['belgeler', 'Belgeler'],
-            ['bagis', 'Bağış'],
-            ['sss', 'SSS'],
-          ] as const
-        ).map(([id, label]) => (
+        {SECTIONS.map(({ id, label }) => (
           <button
             key={id}
             type="button"
             className={`chip ${section === id ? 'is-active' : ''}`}
-            onClick={() => setSection(id)}
+            onClick={() => onSectionChange(id)}
           >
             {label}
           </button>

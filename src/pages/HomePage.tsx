@@ -3,24 +3,21 @@ import { BrandMark } from '../components/BrandMark'
 import { InstallButton } from '../components/InstallButton'
 import { formatDate } from '../lib/format'
 import { loadAnnouncementsData, loadEventsData } from '../lib/liveData'
-import type { Announcement, AssociationData, EventItem, TabId } from '../types'
+import type { Announcement, EventItem, MenuSectionId, TabId } from '../types'
 
-export function HomePage({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
+export function HomePage({
+  onNavigate,
+}: {
+  onNavigate: (tab: TabId, menuSection?: MenuSectionId) => void
+}) {
   const [latestDuyuru, setLatestDuyuru] = useState<Announcement | null>(null)
   const [nextEvent, setNextEvent] = useState<EventItem | null>(null)
-  const [assoc, setAssoc] = useState<AssociationData | null>(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const [d, e, aRes] = await Promise.all([
-          loadAnnouncementsData(),
-          loadEventsData(),
-          fetch(`${import.meta.env.BASE_URL}data/dernek.json?t=${Date.now()}`, {
-            cache: 'no-store',
-          }),
-        ])
+        const [d, e] = await Promise.all([loadAnnouncementsData(), loadEventsData()])
         if (cancelled) return
         setLatestDuyuru(d.items?.[0] ?? null)
         const today = new Date().toISOString().slice(0, 10)
@@ -28,7 +25,6 @@ export function HomePage({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
           .filter((item) => item.date >= today)
           .sort((a, b) => a.date.localeCompare(b.date))[0]
         setNextEvent(next ?? null)
-        if (aRes.ok) setAssoc(await aRes.json())
       } catch {
         // sessiz
       }
@@ -51,7 +47,6 @@ export function HomePage({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
       <header className="brand">
         <BrandMark size={88} />
         <h1>Törnük Derneği</h1>
-        <p>{assoc?.shortDescription ?? 'Üye aidat, duyuru ve etkinlik uygulaması.'}</p>
         <InstallButton />
       </header>
 
@@ -68,9 +63,25 @@ export function HomePage({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
           <strong>Etkinlikler</strong>
           <span>Takvim</span>
         </button>
-        <button type="button" className="quick-card" onClick={() => onNavigate('menu')}>
+        <button type="button" className="quick-card" onClick={() => onNavigate('menu', 'bagis')}>
+          <strong>Bağış</strong>
+          <span>IBAN / ödeme</span>
+        </button>
+        <button type="button" className="quick-card" onClick={() => onNavigate('menu', 'sss')}>
+          <strong>SSS</strong>
+          <span>Sık sorulanlar</span>
+        </button>
+        <button type="button" className="quick-card" onClick={() => onNavigate('menu', 'belgeler')}>
+          <strong>Belgeler</strong>
+          <span>Tüzük ve formlar</span>
+        </button>
+        <button type="button" className="quick-card" onClick={() => onNavigate('menu', 'bilgi')}>
+          <strong>Bilgiler</strong>
+          <span>İletişim / yönetim</span>
+        </button>
+        <button type="button" className="quick-card" onClick={() => onNavigate('menu', 'ozet')}>
           <strong>Menü</strong>
-          <span>IBAN, belgeler</span>
+          <span>Bildirim, yönetim</span>
         </button>
       </div>
 

@@ -77,3 +77,5 @@ export type AssociationData = {
 }
 
 export type TabId = 'ana' | 'aidat' | 'duyurular' | 'etkinlikler' | 'menu'
+
+export type MenuSectionId = 'ozet' | 'bilgi' | 'belgeler' | 'bagis' | 'sss'
