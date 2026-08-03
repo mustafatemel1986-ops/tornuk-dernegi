@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { InstallButton } from '../components/InstallButton'
 import { getAdminHref } from '../lib/adminRoute'
+import { getNtfyDeepLink, getNtfySubscribeUrl } from '../lib/ntfyPush'
 import {
   askServiceWorkerToCheck,
   ensureNotificationPermission,
@@ -53,7 +54,7 @@ export function MenuPage() {
     await registerPeriodicDuyuruCheck()
     await askServiceWorkerToCheck()
     setNotifyMsg(
-      'Bildirimler açık. Yönetici duyuruyu “Ekle ve yayınla” ile kaydetmeli. Uygulama açıkken veya öne getirilince uyarı + ses gelir (iPhone kapalıyken anlık push yoktur).',
+      'Uygulama içi bildirimler açık. Kapalıyken de almak için aşağıdaki “Kapalıyken bildirim” adımını bir kez yapın.',
     )
   }
 
@@ -66,6 +67,17 @@ export function MenuPage() {
     } catch {
       setNotifyMsg('Test başarısız. Telefon ayarlarından bildirim izni verin.')
     }
+  }
+
+  function openBackgroundNotifySetup() {
+    // Önce ntfy uygulaması deep link, olmazsa web
+    window.location.href = getNtfyDeepLink()
+    window.setTimeout(() => {
+      window.open(getNtfySubscribeUrl(), '_blank', 'noopener,noreferrer')
+    }, 800)
+    setNotifyMsg(
+      'Açılan sayfada / uygulamada “Subscribe” veya bildirim iznini verin. Bundan sonra duyurular uygulama kapalıyken de gelir; dokununca Törnük uygulaması açılır.',
+    )
   }
 
   async function copyIban() {
@@ -120,9 +132,10 @@ export function MenuPage() {
           <div className="panel">
             <h2 className="panel-title">Bildirimler</h2>
             <p className="hint">
-              1) Ana ekrandan açın · 2) Bildirimleri Aç · 3) Yönetici duyuruyu “Ekle ve yayınla” ile
-              GitHub’a bassın · 4) Uygulamayı açık tutun veya tekrar açın. Gelen duyuruda uyarı + ses
-              çalar.
+              <strong>Uygulama açıkken:</strong> Bildirimleri Aç yeterli.
+              <br />
+              <strong>Uygulama kapalıyken:</strong> Bir kez “Kapalıyken bildirim”e basıp açılan
+              ekranda abone / izin verin. Sonrası otomatik gelir.
             </p>
             <div className="admin-actions" style={{ marginTop: '0.75rem' }}>
               <button type="button" className="btn btn-primary" onClick={() => void toggleNotify()}>
@@ -130,6 +143,9 @@ export function MenuPage() {
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => void testNotify()}>
                 Test bildirimi / ses
+              </button>
+              <button type="button" className="btn btn-download" onClick={openBackgroundNotifySetup}>
+                Kapalıyken bildirim (bir kez)
               </button>
             </div>
             {notifyMsg && <p className="note">{notifyMsg}</p>}

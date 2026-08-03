@@ -5,12 +5,14 @@ import { BottomNav } from './components/BottomNav'
 import { isAdminRoute, normalizeAdminUrl } from './lib/adminRoute'
 import { isStandalone } from './lib/install'
 import { trackAppInstall } from './lib/installStats'
+import { NTFY_TOPIC } from './lib/ntfyPush'
 import {
   askServiceWorkerToCheck,
   checkDuyurularInPage,
   getNotifyPreference,
   listenForNotifySoundFromSw,
   registerPeriodicDuyuruCheck,
+  showDuyuruNotification,
 } from './lib/notifications'
 import { AidatPage } from './pages/AidatPage'
 import { DuyurularPage } from './pages/DuyurularPage'
@@ -51,6 +53,36 @@ function MemberApp() {
   useEffect(() => {
     // Ana ekrana ekli uygulamada indirme sayacını bir kez artır
     if (isStandalone()) void trackAppInstall()
+  }, [])
+
+  // Uygulama arka planda (ama öldürülmemişken) ntfy üzerinden anlık duyuru
+  useEffect(() => {
+    if (!getNotifyPreference()) return
+    let source: EventSource | null = null
+    try {
+      source = new EventSource(`https://ntfy.sh/${NTFY_TOPIC}/sse`)
+      source.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data) as {
+            event?: string
+            title?: string
+            message?: string
+            id?: string
+          }
+          if (data.event && data.event !== 'message') return
+          void showDuyuruNotification({
+            id: data.id || `ntfy-${Date.now()}`,
+            title: data.title || 'Törnük Derneği',
+            summary: data.message || 'Yeni duyuru',
+          })
+        } catch {
+          // keepalive / parse
+        }
+      }
+    } catch {
+      // EventSource yoksa sessiz
+    }
+    return () => source?.close()
   }, [])
 
   useEffect(() => {

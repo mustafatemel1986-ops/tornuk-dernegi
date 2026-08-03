@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { loadGithubSettings, saveGithubSettings } from '../lib/githubSave'
+import { publishDuyuruToNtfy } from '../lib/ntfyPush'
 import type { Announcement, AnnouncementsData } from '../types'
 
 function todayIso() {
@@ -116,7 +117,17 @@ export function DuyurularAdmin({
       items: [item, ...data.items],
     }
     const ok = await publish(next, 'Duyuru eklendi ve canlıya yayınlandı.')
-    if (ok) setDraft({ title: '', summary: '', body: '', date: todayIso() })
+    if (ok) {
+      setDraft({ title: '', summary: '', body: '', date: todayIso() })
+      try {
+        await publishDuyuruToNtfy({ title: item.title, summary: item.summary })
+        setMsg('Duyuru yayınlandı. Üyelere anlık bildirim de gönderildi.')
+      } catch {
+        setMsg(
+          'Duyuru yayınlandı. Anlık bildirim gönderilemedi; üyeler uygulamayı açınca görür.',
+        )
+      }
+    }
   }
 
   async function removeItem(id: string) {
