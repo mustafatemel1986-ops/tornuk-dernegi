@@ -1,6 +1,14 @@
 {
-  "updatedAt": "2026-08-03T19:03:39.106Z",
+  "updatedAt": "2026-08-03T19:04:31.544Z",
   "subscriptions": [
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/cC4wda38gFg:APA91bHcdqY8QmSTHQj9IuFg-zWDGnwoZZmDxlV-NeBpoE5-NAcmObK0KOSLpDG3ZimfNcLpDKi-ZM7pVMkG0Qkb3SiGaFfWQiKicqQ-uYSFKG4oN5nMekal3IL3ZYm05-lf48gTtIYC",
+      "keys": {
+        "p256dh": "BP3_kHNWN5PTejmMfmgOGKA2dY88FoMyemWD7O8luWRTqKNzJ4KwdK_k0VI7vbR7DWRjTJnFPXxS2ivhOBH9t6Q",
+        "auth": "BO42nUUnWC9XLmrUXOaVLw"
+      },
+      "createdAt": "2026-08-03T19:04:31.544Z"
+    },
     {
       "endpoint": "https://fcm.googleapis.com/fcm/send/egfX8K9VYEI:APA91bF0MFWRjvAf7J327lOBb3GIds8VJYR9Yf9KBTB_x7gsFflRjfT2Y-Labe7QeH7gG3rkPW9mvBIXwhFZ7wNcDZEGl1_J6n2CncPuVhR45qnvdJSy_wOHGF4UkLqJ-VjoNL21fnkR",
       "keys": {
