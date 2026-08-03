@@ -6,10 +6,22 @@
   "email": "info@tornukdernegi.org",
   "workingHours": "Hafta içi 10:00 – 18:00",
   "board": [
-    { "role": "Başkan", "name": "Örnek Başkan" },
-    { "role": "Başkan Yardımcısı", "name": "Örnek Yardımcı" },
-    { "role": "Muhasip", "name": "Örnek Muhasip" },
-    { "role": "Sekreter", "name": "Örnek Sekreter" }
+    {
+      "role": "Başkan",
+      "name": ""
+    },
+    {
+      "role": "Başkan Yardımcısı",
+      "name": "Örnek Yardımcı"
+    },
+    {
+      "role": "Muhasip",
+      "name": "Örnek Muhasip"
+    },
+    {
+      "role": "Sekreter",
+      "name": "Örnek Sekreter"
+    }
   ],
   "donation": {
     "bankName": "Örnek Bankası",
