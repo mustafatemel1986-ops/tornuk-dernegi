@@ -45,6 +45,8 @@ async function pushUnlocked(pin: string, files: AdminDataFile[]): Promise<'direc
   if (token) {
     try {
       await pushAdminDataDirect(token, files)
+      // Worker bellek önbelleğini de güncelle (ağ açıksa); silinenler geri dönmesin
+      void pushViaWorker(pin, files).catch(() => undefined)
       return 'direct'
     } catch (error) {
       // doğrudan yazma başarısızsa Worker dene

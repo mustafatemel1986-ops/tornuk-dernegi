@@ -46,6 +46,10 @@ export function AdminApp() {
     eventsCount: number
   }>({ membersCount: 0, announcementsCount: 0, eventsCount: 0 })
   const publishTimer = useRef<number | null>(null)
+  /** Bekleyen otomatik yayın yolları. null + timer = tüm dosyalar. */
+  const pendingPathsRef = useRef<string[] | null>(null)
+  const pendingAllRef = useRef(false)
+  const pendingSuccessRef = useRef<string | undefined>(undefined)
   /** Yayın sırasında React state henüz güncellenmemişken dataRef’i ezme. */
   const publishingLock = useRef(false)
 
@@ -62,22 +66,41 @@ export function AdminApp() {
         setLoadError(null)
         setDraftNote(null)
 
-        // Admin de aynı kaynak: raw önce, Pages yedek
+        // Admin = canlı kaynak: GitHub Contents API (CDN gecikmesi yok), raw yedek
         const bust = `t=${Date.now()}`
         async function loadFile<T>(file: string): Promise<T> {
           try {
-            const res = await fetch(`${LIVE_DATA_BASE}/${file}?${bust}`, {
-              cache: 'no-store',
-              mode: 'cors',
-            })
-            if (!res.ok) throw new Error('raw fail')
-            return (await res.json()) as T
+            const res = await fetch(
+              `https://api.github.com/repos/mustafatemel1986-ops/tornuk-dernegi/contents/data/${file}?ref=gh-pages&t=${Date.now()}`,
+              {
+                cache: 'no-store',
+                mode: 'cors',
+                headers: { Accept: 'application/vnd.github+json' },
+              },
+            )
+            if (!res.ok) throw new Error('api fail')
+            const payload = (await res.json()) as { content?: string }
+            if (!payload.content) throw new Error('api empty')
+            const clean = payload.content.replace(/\s+/g, '')
+            const binary = atob(clean)
+            const bytes = new Uint8Array(binary.length)
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+            return JSON.parse(new TextDecoder().decode(bytes)) as T
           } catch {
-            const res = await fetch(`${import.meta.env.BASE_URL}data/${file}?${bust}`, {
-              cache: 'no-store',
-            })
-            if (!res.ok) throw new Error(`${file} yüklenemedi`)
-            return (await res.json()) as T
+            try {
+              const res = await fetch(`${LIVE_DATA_BASE}/${file}?${bust}`, {
+                cache: 'no-store',
+                mode: 'cors',
+              })
+              if (!res.ok) throw new Error('raw fail')
+              return (await res.json()) as T
+            } catch {
+              const res = await fetch(`${import.meta.env.BASE_URL}data/${file}?${bust}`, {
+                cache: 'no-store',
+              })
+              if (!res.ok) throw new Error(`${file} yüklenemedi`)
+              return (await res.json()) as T
+            }
           }
         }
 
@@ -174,11 +197,24 @@ export function AdminApp() {
   const schedulePublish = useCallback(
     (delayMs = 700, successText?: string, onlyPaths?: string[]) => {
       setDirty(true)
+      if (!onlyPaths?.length) {
+        pendingAllRef.current = true
+        pendingPathsRef.current = null
+      } else if (!pendingAllRef.current) {
+        const merged = new Set([...(pendingPathsRef.current ?? []), ...onlyPaths])
+        pendingPathsRef.current = [...merged]
+      }
+      pendingSuccessRef.current = successText
       if (publishTimer.current) window.clearTimeout(publishTimer.current)
       publishTimer.current = window.setTimeout(() => {
         publishTimer.current = null
-        void publishNow(successText || 'Değişiklikler otomatik yayınlandı.', onlyPaths).catch(
-          (error) => setDraftNote(error instanceof Error ? error.message : 'Yayın başarısız.'),
+        const paths = pendingAllRef.current ? undefined : (pendingPathsRef.current ?? undefined)
+        const text = pendingSuccessRef.current
+        pendingAllRef.current = false
+        pendingPathsRef.current = null
+        pendingSuccessRef.current = undefined
+        void publishNow(text || 'Değişiklikler otomatik yayınlandı.', paths).catch((error) =>
+          setDraftNote(error instanceof Error ? error.message : 'Yayın başarısız.'),
         )
       }, delayMs)
     },
@@ -191,7 +227,20 @@ export function AdminApp() {
         window.clearTimeout(publishTimer.current)
         publishTimer.current = null
       }
-      return publishNow(successText, onlyPaths)
+
+      let paths: string[] | undefined
+      if (pendingAllRef.current || !onlyPaths?.length) {
+        paths = undefined
+      } else if (pendingPathsRef.current?.length) {
+        paths = [...new Set([...pendingPathsRef.current, ...onlyPaths])]
+      } else {
+        paths = onlyPaths
+      }
+
+      pendingAllRef.current = false
+      pendingPathsRef.current = null
+      pendingSuccessRef.current = undefined
+      return publishNow(successText, paths)
     },
     [publishNow],
   )
@@ -321,7 +370,31 @@ export function AdminApp() {
         ))}
       </div>
 
-      {tab === 'aidat' && <AidatAdmin data={members} onChange={patchMembers} />}
+      {tab === 'aidat' && (
+        <AidatAdmin
+          data={members}
+          onChange={patchMembers}
+          onPublishNow={async (next, successText) => {
+            const prev = dataRef.current.members
+            publishingLock.current = true
+            dataRef.current = { ...dataRef.current, members: next }
+            setMembers(next)
+            setLiveMembers(next)
+            setDirty(true)
+            try {
+              return await flushPublish(successText, ['public/data/uyeler.json'])
+            } catch (error) {
+              if (prev) {
+                dataRef.current = { ...dataRef.current, members: prev }
+                setMembers(prev)
+                setLiveMembers(prev)
+              }
+              publishingLock.current = false
+              throw error
+            }
+          }}
+        />
+      )}
       {tab === 'duyurular' && (
         <DuyurularAdmin
           data={announcements}

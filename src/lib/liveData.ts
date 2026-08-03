@@ -90,8 +90,8 @@ async function fetchViaGithubApi<T>(file: string): Promise<T> {
 }
 
 /**
- * 1) Cloudflare Worker /live (yayın sonrası anında)
- * 2) GitHub Contents API (CDN yok)
+ * 1) GitHub Contents API (CDN yok — doğrudan yazmadan sonra doğru kaynak)
+ * 2) Cloudflare Worker /live
  * 3) raw.githubusercontent
  * 4) Site Pages data/
  */
@@ -100,15 +100,15 @@ async function fetchJson<T>(file: string): Promise<T> {
   const errors: string[] = []
 
   try {
-    return await fetchOne<T>(`${PUBLISH_API_URL}/live/${file}?${bust}`)
-  } catch (e) {
-    errors.push(`worker:${e instanceof Error ? e.message : 'fail'}`)
-  }
-
-  try {
     return await fetchViaGithubApi<T>(file)
   } catch (e) {
     errors.push(`api:${e instanceof Error ? e.message : 'fail'}`)
+  }
+
+  try {
+    return await fetchOne<T>(`${PUBLISH_API_URL}/live/${file}?${bust}`)
+  } catch (e) {
+    errors.push(`worker:${e instanceof Error ? e.message : 'fail'}`)
   }
 
   try {

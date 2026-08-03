@@ -34,9 +34,11 @@ function currentYear() {
 export function AidatAdmin({
   data,
   onChange,
+  onPublishNow,
 }: {
   data: MembershipData
   onChange: (next: MembershipData) => void
+  onPublishNow: (next: MembershipData, successText: string) => Promise<'direct' | 'worker' | void>
 }) {
   const [query, setQuery] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
@@ -47,6 +49,8 @@ export function AidatAdmin({
   const [newTc, setNewTc] = useState('')
   const [newYear, setNewYear] = useState(String(currentYear() - 1))
   const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('tr')
@@ -69,6 +73,25 @@ export function AidatAdmin({
   )
 
   const activeMember = openId ? data.members.find((m) => m.idHash === openId) ?? null : null
+
+  async function publishImmediate(
+    next: MembershipData,
+    successText: string,
+  ): Promise<'direct' | 'worker' | false> {
+    setBusy(true)
+    setMsg(null)
+    setErr(null)
+    try {
+      const via = (await onPublishNow(next, successText)) || 'direct'
+      setMsg(successText)
+      return via
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : 'Yayın başarısız.')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
 
   function updateMember(idHash: string, patch: Partial<MemberRecord>) {
     onChange({
@@ -111,17 +134,36 @@ export function AidatAdmin({
     setSelected(new Set(filtered.map((m) => m.idHash)))
   }
 
-  function removeSelected() {
-    if (!selectedCount) return
+  async function removeSelected() {
+    if (!selectedCount || busy) return
     if (!confirm(`${selectedCount} üye silinsin mi? Canlı listeden de kalkacak.`)) return
-    onChange({
+    const next: MembershipData = {
       ...data,
       updatedAt: nowIso(),
       members: data.members.filter((m) => !selected.has(m.idHash)),
-    })
+    }
+    const ok = await publishImmediate(next, `${selectedCount} üye silindi ve yayınlandı.`)
+    if (!ok) return
     if (openId && selected.has(openId)) setOpenId(null)
     setSelected(new Set())
-    setMsg(`${selectedCount} üye silindi.`)
+  }
+
+  async function removeMember(idHash: string) {
+    if (busy) return
+    if (!confirm('Bu üyeyi listeden silmek istiyor musunuz? Canlı listeden de kalkacak.')) return
+    const next: MembershipData = {
+      ...data,
+      updatedAt: nowIso(),
+      members: data.members.filter((m) => m.idHash !== idHash),
+    }
+    const ok = await publishImmediate(next, 'Üye silindi ve yayınlandı.')
+    if (!ok) return
+    setSelected((prev) => {
+      const n = new Set(prev)
+      n.delete(idHash)
+      return n
+    })
+    if (openId === idHash) setOpenId(null)
   }
 
   function applyPayment() {
@@ -200,6 +242,7 @@ export function AidatAdmin({
   }
 
   async function addMember() {
+    if (busy) return
     const tc = normalizeTc(newTc)
     if (!isValidTc(tc)) {
       setMsg('Yeni üye için geçerli T.C. kimlik no girin.')
@@ -216,14 +259,15 @@ export function AidatAdmin({
     }
 
     const year = currentYear()
-    onChange({
+    const displayName = maskDisplayName(newName)
+    const next: MembershipData = {
       ...data,
       updatedAt: nowIso(),
       members: [
         ...data.members,
         {
           idHash,
-          displayName: maskDisplayName(newName),
+          displayName,
           debtAmount: 0,
           debtMonths: [],
           lastPayment: null,
@@ -234,13 +278,15 @@ export function AidatAdmin({
           ],
         },
       ],
-    })
+    }
+    const ok = await publishImmediate(
+      next,
+      `Yeni üye eklendi (${displayName}) ve yayınlandı.`,
+    )
+    if (!ok) return
     setNewName('')
     setNewTc('')
     setOpenId(idHash)
-    setMsg(
-      `Yeni üye eklendi (${maskDisplayName(newName)}). Aidat sekmesinde aynı T.C. ile hemen sorgulanabilir.`,
-    )
   }
 
   function addDebtMonth(member: MemberRecord) {
@@ -297,9 +343,12 @@ export function AidatAdmin({
     <div className="admin-panel">
       <h2>Aidat yönetimi</h2>
       <p className="hint">
-        Üyeleri seçip toplu silebilirsiniz. Düzenlemek için satırı açın. Değişiklikler otomatik
-        yayınlanır.
+        Üyeleri seçip toplu silebilirsiniz. Silme ve ekleme canlıya hemen yayınlanır; diğer
+        düzenlemeler otomatik kaydolur.
       </p>
+
+      {err && <p className="admin-msg err">{err}</p>}
+      {msg && <p className="admin-msg ok">{msg}</p>}
 
       <ImportMembers data={data} onChange={onChange} />
 
@@ -329,15 +378,13 @@ export function AidatAdmin({
         </label>
       </div>
 
-      {msg && <p className="admin-msg ok">{msg}</p>}
-
       <div className="admin-bulk-bar">
         <label className="admin-check">
           <input
             type="checkbox"
             checked={allSelected}
             onChange={toggleAll}
-            disabled={!filtered.length}
+            disabled={busy || !filtered.length}
           />
           Tümünü seç ({filtered.length})
         </label>
@@ -345,7 +392,7 @@ export function AidatAdmin({
           <button
             type="button"
             className="btn btn-ghost"
-            disabled={!selectedCount}
+            disabled={!selectedCount || busy}
             onClick={() => setSelected(new Set())}
           >
             Seçimi temizle
@@ -353,8 +400,8 @@ export function AidatAdmin({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={!selectedCount}
-            onClick={removeSelected}
+            disabled={!selectedCount || busy}
+            onClick={() => void removeSelected()}
           >
             Seçilenleri sil ({selectedCount})
           </button>
@@ -420,21 +467,8 @@ export function AidatAdmin({
                   <button
                     type="button"
                     className="btn btn-ghost"
-                    onClick={() => {
-                      if (!confirm('Bu üyeyi listeden silmek istiyor musunuz?')) return
-                      onChange({
-                        ...data,
-                        updatedAt: nowIso(),
-                        members: data.members.filter((m) => m.idHash !== member.idHash),
-                      })
-                      setSelected((prev) => {
-                        const n = new Set(prev)
-                        n.delete(member.idHash)
-                        return n
-                      })
-                      if (openId === member.idHash) setOpenId(null)
-                      setMsg('Üye silindi.')
-                    }}
+                    disabled={busy}
+                    onClick={() => void removeMember(member.idHash)}
                   >
                     Sil
                   </button>

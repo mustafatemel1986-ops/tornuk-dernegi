@@ -265,12 +265,10 @@ async function handleLiveGet(env, origin, fileName) {
   }
 
   try {
-    let text = memoryLive.get(fileName)
-    if (!text) {
-      if (!env.GITHUB_TOKEN) throw new Error('Token yok')
-      text = await readLiveFileFromGithub(env.GITHUB_TOKEN, fileName)
-      memoryLive.set(fileName, text)
-    }
+    // Bellekte varsa bile GitHub’dan tazele — doğrudan yayın sonrası eski cache dönmesin
+    if (!env.GITHUB_TOKEN) throw new Error('Token yok')
+    const text = await readLiveFileFromGithub(env.GITHUB_TOKEN, fileName)
+    memoryLive.set(fileName, text)
 
     return new Response(text, {
       status: 200,
@@ -283,6 +281,19 @@ async function handleLiveGet(env, origin, fileName) {
       },
     })
   } catch (error) {
+    const cached = memoryLive.get(fileName)
+    if (cached) {
+      return new Response(cached, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          Pragma: 'no-cache',
+          Expires: '0',
+          ...corsHeaders(origin),
+        },
+      })
+    }
     return json(
       { ok: false, error: error instanceof Error ? error.message : 'Okuma başarısız' },
       502,
