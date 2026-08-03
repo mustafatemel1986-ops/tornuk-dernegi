@@ -1,4 +1,13 @@
 {
-  "updatedAt": "2026-08-03T00:00:00.000Z",
-  "subscriptions": []
+  "updatedAt": "2026-08-03T12:22:16.133Z",
+  "subscriptions": [
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/fdYbAjLM7MQ:APA91bFIkqJznlRzqPMCdMX77Hn5IVE3OOy6qgGzx4jXLklHmZwf-FfrZlnNg621wNWm7qWqVkkvR7q7r9P8DNfdNwC3kwI2G205nXNObK2hX0bDiNjX7qU3n1yEbplsBBVRsCr1IBxE",
+      "keys": {
+        "p256dh": "BKh9JYV193PcOmh6d8-MQ_0KkxyoJHTE1ZzjARhYTIgsmGBQFOaNrlC4WyT2O4aIRWFZxfCICI42Detas3Sm0JE",
+        "auth": "di5-fgIvtknZiKs1sHSNkA"
+      },
+      "createdAt": "2026-08-03T12:22:16.133Z"
+    }
+  ]
 }
