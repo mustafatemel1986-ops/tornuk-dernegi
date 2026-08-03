@@ -1,4 +1,89 @@
 {
-  "updatedAt": "2026-08-03T08:17:30.395Z",
-  "items": []
+  "updatedAt": "2026-08-03T07:59:01.325Z",
+  "items": [
+    {
+      "id": "duyuru-2026-08-03-mscxu3m5-soner",
+      "title": "Soner",
+      "summary": "Şahin",
+      "body": "Son deneme artık",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-mscxg2ky-haka",
+      "title": "haka",
+      "summary": "hakan",
+      "body": "faka basmasz",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-deneme",
+      "title": "Deneme",
+      "summary": "Deneme için test",
+      "body": "Bu bildirim size törnük derneği uygulamasından deneme amaçlı atılmıştır.",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-ad",
+      "title": "ad",
+      "summary": "ad",
+      "body": "ad",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-gata",
+      "title": "gata",
+      "summary": "gata",
+      "body": "gata",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-08-03-fasa",
+      "title": "fasa",
+      "summary": "fasa",
+      "body": "fasa",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "duyuru-2026-07-31-denem",
+      "title": "denem",
+      "summary": "denem",
+      "body": "amkfasşldmaslşfmsaşfmas",
+      "date": "2026-07-31"
+    },
+    {
+      "id": "duyuru-2026-07-31-deneme",
+      "title": "deneme",
+      "summary": "dene",
+      "body": "deneme",
+      "date": "2026-07-31"
+    },
+    {
+      "id": "duyuru-2026-07-31-test",
+      "title": "Test",
+      "summary": "bildirim test",
+      "body": "bildirim test",
+      "date": "2026-07-31"
+    },
+    {
+      "id": "duyuru-2026-07-genel-kurul",
+      "title": "Olağan Genel Kurul Duyurusu",
+      "date": "2026-07-28",
+      "summary": "2026 yılı olağan genel kurul toplantımız 15 Ağustos Cumartesi günü saat 14:00'te dernek lokalinde yapılacaktır.",
+      "body": "Değerli üyelerimiz,\n\n2026 yılı olağan genel kurul toplantımız 15 Ağustos 2026 Cumartesi günü saat 14:00'te dernek lokalinde gerçekleştirilecektir.\n\nGündem: faaliyet raporu, mali rapor, yönetim seçimi.\n\nKatılımınızı rica ederiz."
+    },
+    {
+      "id": "duyuru-2026-07-aidat",
+      "title": "Aidat hatırlatması",
+      "date": "2026-07-10",
+      "summary": "Temmuz ayı aidat ödemeleri için son gün 31 Temmuz'dur.",
+      "body": "Sayın üyelerimiz, temmuz ayı aidat ödemelerinizi uygulama üzerinden borç durumunuzu kontrol ederek gerçekleştirebilirsiniz. Ödeme için IBAN bilgisine Bağış / Ödeme bölümünden ulaşabilirsiniz."
+    },
+    {
+      "id": "duyuru-2026-06-temizlik",
+      "title": "Köy temizliği etkinliği teşekkürü",
+      "date": "2026-06-20",
+      "summary": "Geçtiğimiz hafta sonu düzenlenen çevre temizliği etkinliğine katılan tüm üyelerimize teşekkür ederiz.",
+      "body": "Köy meydanı ve çevresinde gerçekleştirdiğimiz temizlik çalışmasına emek veren tüm üyelerimize teşekkür ederiz. Bir sonraki etkinlik takvimi yakında paylaşılacaktır."
+    }
+  ]
 }
