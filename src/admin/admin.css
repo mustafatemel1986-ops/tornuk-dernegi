@@ -557,6 +557,38 @@
   color: #8a5a00;
 }
 
+.aidat-tc {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+
+.aidat-tc-box {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.65rem;
+  align-items: end;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.aidat-tc-box.is-missing {
+  border-color: #f0c36a;
+  background: #fffbeb;
+}
+
+@media (max-width: 560px) {
+  .aidat-tc-box {
+    grid-template-columns: 1fr;
+  }
+}
+
 .aidat-col-year,
 .aidat-col-debt {
   font-size: 0.84rem;

@@ -228,6 +228,7 @@ export async function parseMembersFile(
 
     members.push({
       idHash,
+      tc,
       displayName: maskDisplayName(row.ad_soyad),
       debtAmount: totalDebtFromHistory(yearHistory) || debtAmount,
       debtMonths,

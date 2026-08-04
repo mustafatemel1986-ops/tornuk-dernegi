@@ -43,6 +43,7 @@ export function AidatAdmin({
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [newName, setNewName] = useState('')
   const [newTc, setNewTc] = useState('')
+  const [tcDraft, setTcDraft] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -58,6 +59,7 @@ export function AidatAdmin({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('tr')
+    const qDigits = query.replace(/\D/g, '')
     return data.members
       .slice()
       .sort((a, b) => {
@@ -65,7 +67,12 @@ export function AidatAdmin({
         const db = totalDebtFromHistory(ensureYearHistory(b, data.monthlyFee))
         return db - da || a.displayName.localeCompare(b.displayName, 'tr')
       })
-      .filter((m) => !q || m.displayName.toLocaleLowerCase('tr').includes(q))
+      .filter((m) => {
+        if (!q) return true
+        if (m.displayName.toLocaleLowerCase('tr').includes(q)) return true
+        if (qDigits.length >= 3 && (m.tc || '').includes(qDigits)) return true
+        return false
+      })
   }, [data.members, data.monthlyFee, query])
 
   const allSelected = filtered.length > 0 && filtered.every((m) => selected.has(m.idHash))
@@ -200,6 +207,7 @@ export function AidatAdmin({
         ...data.members,
         {
           idHash,
+          tc,
           displayName,
           debtAmount: 0,
           debtMonths: [],
@@ -231,6 +239,69 @@ export function AidatAdmin({
       member,
       upsertYear(history, year, { status: 'borclu', debtAmount: data.monthlyFee }),
     )
+  }
+
+  function openMember(member: MemberRecord) {
+    if (openId === member.idHash) {
+      setOpenId(null)
+      setTcDraft('')
+      return
+    }
+    setOpenId(member.idHash)
+    setTcDraft(member.tc || '')
+    setMsg(null)
+    setErr(null)
+  }
+
+  async function saveMemberTc(member: MemberRecord) {
+    if (busy) return
+    const tc = normalizeTc(tcDraft)
+    if (!isValidTc(tc)) {
+      setErr('T.C. kimlik no 11 haneli olmalı ve 0 ile başlamamalı.')
+      setMsg(null)
+      return
+    }
+
+    const idHash = await hashTc(tc)
+    const clash = data.members.find((m) => m.idHash !== member.idHash && (m.idHash === idHash || m.tc === tc))
+    if (clash) {
+      setErr(`Bu T.C. başka üyede kayıtlı: ${clash.displayName}`)
+      setMsg(null)
+      return
+    }
+
+    let notes = member.notes
+    if (notes.includes('TC girilmedi')) notes = ''
+    notes = notes.replace(/TC kontrol:[^\n]*/g, '').trim()
+
+    const nextMembers = data.members.map((m) => {
+      if (m.idHash !== member.idHash) return m
+      return {
+        ...m,
+        idHash,
+        tc,
+        notes,
+      }
+    })
+    const next: MembershipData = {
+      ...data,
+      updatedAt: nowIso(),
+      members: nextMembers,
+    }
+    const ok = await publishImmediate(
+      next,
+      member.tc ? 'T.C. güncellendi ve yayınlandı.' : 'T.C. eklendi ve yayınlandı.',
+    )
+    if (!ok) return
+    setOpenId(idHash)
+    setTcDraft(tc)
+    setSelected((prev) => {
+      if (!prev.has(member.idHash)) return prev
+      const n = new Set(prev)
+      n.delete(member.idHash)
+      n.add(idHash)
+      return n
+    })
   }
 
   return (
@@ -300,7 +371,7 @@ export function AidatAdmin({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ad soyad yazın…"
+            placeholder="Ad soyad veya TC…"
           />
         </label>
         <label className="admin-check">
@@ -357,12 +428,14 @@ export function AidatAdmin({
                 <button
                   type="button"
                   className="aidat-row-open"
-                  onClick={() => setOpenId(open ? null : member.idHash)}
+                  onClick={() => openMember(member)}
                 >
                   <span className="aidat-col-name">
                     <strong>{member.displayName}</strong>
-                    {member.notes.includes('TC girilmedi') && (
-                      <em className="aidat-tag">TC yok</em>
+                    {member.tc ? (
+                      <span className="aidat-tc">{member.tc}</span>
+                    ) : (
+                      <em className="aidat-tag">TC ekle</em>
                     )}
                   </span>
                   {years.map((y) => {
@@ -382,6 +455,27 @@ export function AidatAdmin({
 
               {open && (
                 <div className="aidat-row-edit">
+                  <div className={`aidat-tc-box ${member.tc ? '' : 'is-missing'}`}>
+                    <label className="admin-label">
+                      T.C. kimlik no
+                      <input
+                        inputMode="numeric"
+                        maxLength={11}
+                        value={tcDraft}
+                        onChange={(e) => setTcDraft(normalizeTc(e.target.value))}
+                        placeholder={member.tc ? member.tc : '11 haneli TC girin'}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={busy || tcDraft === (member.tc || '')}
+                      onClick={() => void saveMemberTc(member)}
+                    >
+                      {member.tc ? 'T.C. güncelle' : 'T.C. kaydet'}
+                    </button>
+                  </div>
+
                   <div className="aidat-year-grid">
                     {history.map((item) => (
                       <div key={item.year} className="aidat-year-card">

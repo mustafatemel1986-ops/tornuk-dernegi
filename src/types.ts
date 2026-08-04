@@ -9,6 +9,8 @@ export type YearAidat = {
 
 export type MemberRecord = {
   idHash: string
+  /** Açık T.C. — yönetim paneli için; sorguda hash kullanılır */
+  tc?: string
   displayName: string
   debtAmount: number
   debtMonths: string[]
