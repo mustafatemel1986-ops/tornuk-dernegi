@@ -354,7 +354,7 @@ export function AidatAdmin({
 
       <div className="admin-fields two">
         <label className="admin-label">
-          Aylık aidat (₺)
+          Yıllık aidat (₺)
           <input
             type="number"
             min={0}

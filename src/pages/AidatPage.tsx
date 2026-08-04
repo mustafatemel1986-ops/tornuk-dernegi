@@ -143,7 +143,7 @@ export function AidatPage() {
           <>
             Son güncelleme: <strong>{formatDate(data.updatedAt)}</strong>
             {' · '}
-            Aylık aidat: <strong>{formatMoney(data.monthlyFee)}</strong>
+            Yıllık aidat: <strong>{formatMoney(data.monthlyFee)}</strong>
           </>
         ) : loadError ? (
           loadError
@@ -174,7 +174,7 @@ function ResultCard({ member, data }: { member: MemberRecord; data: MembershipDa
       </div>
       <dl className="meta">
         <div>
-          <dt>Aylık aidat</dt>
+          <dt>Yıllık aidat</dt>
           <dd>{formatMoney(data.monthlyFee)}</dd>
         </div>
         <div>
