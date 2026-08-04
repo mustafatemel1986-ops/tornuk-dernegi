@@ -7,7 +7,6 @@ import {
   ensureNotificationPermission,
   getNotifyPreference,
   registerPeriodicDuyuruCheck,
-  sendTestNotification,
   setNotifyPreference,
 } from '../lib/notifications'
 import { subscribeWebPush, unsubscribeWebPush } from '../lib/webPush'
@@ -80,22 +79,6 @@ export function MenuPage({
     }
   }
 
-  async function testNotify() {
-    try {
-      await sendTestNotification()
-      try {
-        await subscribeWebPush()
-      } catch {
-        // yedek
-      }
-      setNotifyMsg('Test bildirimi gönderildi — ses duyulduysa hazır.')
-      setNotifyOn(true)
-      setNotifyPreference(true)
-    } catch {
-      setNotifyMsg('Test başarısız. Telefon ayarlarından bildirim izni verin.')
-    }
-  }
-
   async function copyIban() {
     if (!data) return
     try {
@@ -146,9 +129,6 @@ export function MenuPage({
             <div className="admin-actions" style={{ marginTop: '0.75rem' }}>
               <button type="button" className="btn btn-primary" onClick={() => void toggleNotify()}>
                 {notifyOn ? 'Bildirimleri Kapat' : 'Bildirimleri Aç'}
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => void testNotify()}>
-                Test bildirimi / ses
               </button>
             </div>
             {notifyMsg && <p className="note">{notifyMsg}</p>}
