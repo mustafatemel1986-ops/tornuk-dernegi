@@ -43,12 +43,6 @@
   },
   "documents": [
     {
-      "id": "uye-formu",
-      "title": "Üyelik Başvuru Formu",
-      "description": "Yeni üyelik için doldurulacak form",
-      "url": "belgeler/uye-basvuru-formu.html"
-    },
-    {
       "id": "tutanak-ornek",
       "title": "Toplantı Tutanağı Örneği",
       "description": "Genel kurul / yönetim toplantı tutanağı şablonu",
