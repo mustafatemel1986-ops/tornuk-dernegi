@@ -659,9 +659,17 @@
   color: #991b1b;
 }
 
-.aidat-import {
-  border-top: 1px solid var(--line);
-  padding-top: 0.75rem;
+.aidat-add-year {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.85rem;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--brand) 35%, var(--line));
+  background: color-mix(in srgb, var(--brand) 5%, #fff);
+}
+
+.aidat-add-year strong {
+  color: var(--brand-deep);
 }
 
 .aidat-import summary {

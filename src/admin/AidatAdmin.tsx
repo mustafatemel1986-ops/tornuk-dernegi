@@ -44,6 +44,8 @@ export function AidatAdmin({
   const [newName, setNewName] = useState('')
   const [newTc, setNewTc] = useState('')
   const [tcDraft, setTcDraft] = useState('')
+  const [newYear, setNewYear] = useState(String(currentYear() + 1))
+  const [newYearStatus, setNewYearStatus] = useState<'odendi' | 'borclu'>('odendi')
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -54,7 +56,7 @@ export function AidatAdmin({
     for (const m of data.members) {
       for (const y of m.yearHistory ?? []) set.add(y.year)
     }
-    return [...set].sort((a, b) => b - a).slice(0, 4)
+    return [...set].sort((a, b) => b - a).slice(0, 6)
   }, [data.members])
 
   const filtered = useMemo(() => {
@@ -239,6 +241,32 @@ export function AidatAdmin({
       member,
       upsertYear(history, year, { status: 'borclu', debtAmount: data.monthlyFee }),
     )
+  }
+
+  function addYearRow(member: MemberRecord) {
+    const year = Number(newYear)
+    if (!year || year < 2000 || year > 2100) {
+      setErr('Geçerli bir yıl girin (ör. 2027).')
+      setMsg(null)
+      return
+    }
+    const history = ensureYearHistory(member, data.monthlyFee)
+    if (history.some((y) => y.year === year)) {
+      setErr(`${year} yılı zaten listede.`)
+      setMsg(null)
+      return
+    }
+    setMemberHistory(
+      member,
+      upsertYear(history, year, {
+        status: newYearStatus,
+        debtAmount: newYearStatus === 'odendi' ? 0 : data.monthlyFee,
+        note: newYearStatus === 'odendi' ? 'Peşin ödendi' : '',
+      }),
+    )
+    setMsg(`${member.displayName} için ${year} eklendi (${newYearStatus === 'odendi' ? 'ödendi' : 'borçlu'}).`)
+    setErr(null)
+    setNewYear(String(year + 1))
   }
 
   function openMember(member: MemberRecord) {
@@ -522,6 +550,43 @@ export function AidatAdmin({
                         </div>
                       </div>
                     ))}
+                  </div>
+
+                  <div className="aidat-add-year">
+                    <strong>Yıl ekle</strong>
+                    <p className="hint">Peşin ödeme için gelecek yılı ekleyip ödendi işaretleyin.</p>
+                    <div className="admin-fields two">
+                      <label className="admin-label">
+                        Yıl
+                        <input
+                          type="number"
+                          min={2000}
+                          max={2100}
+                          value={newYear}
+                          onChange={(e) => setNewYear(e.target.value)}
+                          placeholder="2027"
+                        />
+                      </label>
+                      <label className="admin-label">
+                        Durum
+                        <select
+                          value={newYearStatus}
+                          onChange={(e) =>
+                            setNewYearStatus(e.target.value as 'odendi' | 'borclu')
+                          }
+                        >
+                          <option value="odendi">Ödendi</option>
+                          <option value="borclu">Borçlu</option>
+                        </select>
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => addYearRow(member)}
+                    >
+                      Yılı ekle
+                    </button>
                   </div>
 
                   <label className="admin-label">
