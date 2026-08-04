@@ -1,8 +1,13 @@
-/** T.C. Kimlik No doğrulama (algoritma + biçim). */
+/** T.C. Kimlik No — 11 hane, 0 ile başlamaz (dernek listelerindeki no’lar için yeterli). */
 export function isValidTc(raw: string): boolean {
   const tc = raw.trim()
-  if (!/^\d{11}$/.test(tc)) return false
-  if (tc[0] === '0') return false
+  return /^\d{11}$/.test(tc) && tc[0] !== '0'
+}
+
+/** Resmi TC kontrol basamakları (opsiyonel uyarı için). */
+export function hasValidTcChecksum(raw: string): boolean {
+  const tc = raw.trim()
+  if (!isValidTc(tc)) return false
 
   const d = tc.split('').map(Number)
   const oddSum = d[0] + d[2] + d[4] + d[6] + d[8]

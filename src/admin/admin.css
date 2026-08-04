@@ -431,3 +431,238 @@
   border-color: var(--brand);
   color: #fff;
 }
+
+/* —— Aidat admin (sade liste) —— */
+.aidat-admin-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.aidat-admin-head h2 {
+  margin: 0;
+}
+
+.aidat-fee-field {
+  min-width: 140px;
+  max-width: 180px;
+}
+
+.aidat-add-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  border: 1px dashed color-mix(in srgb, var(--brand) 35%, var(--line));
+  background: color-mix(in srgb, var(--brand) 6%, #fff);
+}
+
+.aidat-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.aidat-search {
+  flex: 1;
+  min-width: 180px;
+}
+
+.aidat-table {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.aidat-table-head,
+.aidat-row-main {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.aidat-row-open {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(auto-fit, minmax(64px, 0.7fr)) minmax(72px, 0.8fr);
+  gap: 0.4rem;
+  align-items: center;
+  text-align: left;
+  padding: 0.7rem 0.4rem 0.7rem 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.aidat-table-head {
+  padding: 0.35rem 0.55rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  grid-template-columns: 28px minmax(0, 1.4fr) repeat(auto-fit, minmax(64px, 0.7fr)) minmax(72px, 0.8fr);
+}
+
+.aidat-row {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.aidat-row.is-selected {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--line));
+  background: color-mix(in srgb, var(--brand) 5%, #fff);
+}
+
+.aidat-row.is-open {
+  box-shadow: 0 8px 22px rgba(15, 50, 45, 0.08);
+}
+
+.aidat-row-main {
+  padding-left: 0.55rem;
+}
+
+.aidat-col-check {
+  display: grid;
+  place-items: center;
+}
+
+.aidat-col-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.aidat-col-name strong {
+  font-size: 0.98rem;
+  color: var(--brand-deep);
+}
+
+.aidat-tag {
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: #fff3cd;
+  color: #8a5a00;
+}
+
+.aidat-col-year,
+.aidat-col-debt {
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.aidat-year-badge.is-ok,
+.aidat-col-debt.is-ok {
+  color: #0f766e;
+}
+
+.aidat-year-badge.is-debt,
+.aidat-col-debt.is-debt {
+  color: #b42318;
+}
+
+.aidat-year-badge.is-empty {
+  color: var(--muted);
+}
+
+.aidat-row-edit {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0 0.75rem 0.9rem;
+  border-top: 1px solid var(--line);
+  background: #fafcfb;
+}
+
+.aidat-year-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.65rem;
+  padding-top: 0.75rem;
+}
+
+.aidat-year-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.aidat-year-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.aidat-year-card-top .badge-ok,
+.aidat-year-card-top .badge-debt {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+}
+
+.aidat-year-card-top .badge-ok {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.aidat-year-card-top .badge-debt {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.aidat-import {
+  border-top: 1px solid var(--line);
+  padding-top: 0.75rem;
+}
+
+.aidat-import summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-bottom: 0.65rem;
+}
+
+@media (max-width: 720px) {
+  .aidat-table-head {
+    display: none;
+  }
+
+  .aidat-row-open {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'name debt'
+      'years years';
+  }
+
+  .aidat-col-name {
+    grid-area: name;
+  }
+
+  .aidat-col-debt {
+    grid-area: debt;
+    text-align: right;
+  }
+
+  .aidat-col-year {
+    grid-area: years;
+    justify-self: start;
+    font-size: 0.78rem;
+  }
+}

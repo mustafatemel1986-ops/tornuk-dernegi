@@ -53,7 +53,7 @@ export function AidatPage() {
     if (!isValidTc(normalized)) {
       setView({
         status: 'error',
-        message: 'Geçerli bir 11 haneli T.C. kimlik numarası giriniz.',
+        message: 'T.C. kimlik numarası 11 haneli olmalı.',
       })
       return
     }
