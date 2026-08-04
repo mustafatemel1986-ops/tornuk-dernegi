@@ -604,6 +604,28 @@
   font-size: 0.92rem;
 }
 
+.menu-app-stack {
+  gap: 1rem;
+}
+
+.menu-admin-link {
+  display: inline-flex;
+  align-self: center;
+  margin-top: 0.35rem;
+  padding: 0.35rem 0.25rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.menu-admin-link:hover,
+.menu-admin-link:focus-visible {
+  color: var(--brand-deep);
+  border-bottom-color: color-mix(in srgb, var(--brand) 40%, transparent);
+}
+
 .chip-row {
   display: flex;
   gap: 0.5rem;

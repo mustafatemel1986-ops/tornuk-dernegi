@@ -81,7 +81,7 @@ export function HomePage({
         </button>
         <button type="button" className="quick-card" onClick={() => onNavigate('menu', 'ozet')}>
           <strong>Menü</strong>
-          <span>Bildirim, yönetim</span>
+          <span>Bildirim, indirme</span>
         </button>
       </div>
 

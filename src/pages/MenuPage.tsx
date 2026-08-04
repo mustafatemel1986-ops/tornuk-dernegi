@@ -13,7 +13,7 @@ import { subscribeWebPush, unsubscribeWebPush } from '../lib/webPush'
 import type { AssociationData, MenuSectionId } from '../types'
 
 const SECTIONS: { id: MenuSectionId; label: string }[] = [
-  { id: 'ozet', label: 'Özet' },
+  { id: 'ozet', label: 'Uygulama' },
   { id: 'bilgi', label: 'Bilgiler' },
   { id: 'belgeler', label: 'Belgeler' },
   { id: 'bagis', label: 'Bağış' },
@@ -102,7 +102,7 @@ export function MenuPage({
     <section className="page">
       <header className="page-head">
         <h1>Menü</h1>
-        <p>Dernek bilgileri, belgeler, bağış ve yardım.</p>
+        <p>Bildirim, indirme ve dernek bilgileri.</p>
       </header>
 
       <div className="chip-row">
@@ -119,27 +119,27 @@ export function MenuPage({
       </div>
 
       {section === 'ozet' && (
-        <div className="stack">
+        <div className="stack menu-app-stack">
           <div className="panel">
             <h2 className="panel-title">Bildirimler</h2>
             <p className="hint">
-              Uygulamayı indirdikten sonra bildirim izni otomatik sorulur. İzin verirseniz yeni
-              duyurularda uyarı alırsınız.
+              Yeni duyuru ve etkinliklerde telefonunuza uyarı gelsin.
             </p>
-            <div className="admin-actions" style={{ marginTop: '0.75rem' }}>
-              <button type="button" className="btn btn-primary" onClick={() => void toggleNotify()}>
-                {notifyOn ? 'Bildirimleri Kapat' : 'Bildirimleri Aç'}
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ marginTop: '0.35rem' }}
+              onClick={() => void toggleNotify()}
+            >
+              {notifyOn ? 'Bildirimleri Kapat' : 'Bildirimleri Aç'}
+            </button>
             {notifyMsg && <p className="note">{notifyMsg}</p>}
           </div>
+
           <InstallButton />
-          <a className="content-card link-card" href={getAdminHref()}>
-            <h2>Yönetim paneli</h2>
-            <p className="content-summary">
-              Aidat, duyuru ve etkinlik güncellemek için yöneticiler giriş yapar.
-            </p>
-            <span className="link-cta">Panele git →</span>
+
+          <a className="menu-admin-link" href={getAdminHref()}>
+            Yöneticiler için giriş →
           </a>
         </div>
       )}
