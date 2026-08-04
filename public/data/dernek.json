@@ -41,14 +41,7 @@
     "iban": "TR06 0001 0026 4584 3998 1550 07",
     "note": "Açıklama kısmına adınızı soyadınızı ve \"aidat\" veya \"bağış\" yazınız.\nÖdemenizin sisteme girilmesi için dekontunuzu dernek yönetimine iletiniz."
   },
-  "documents": [
-    {
-      "id": "tutanak-ornek",
-      "title": "Daha sonra güncellenecek",
-      "description": "",
-      "url": ""
-    }
-  ],
+  "documents": [],
   "faq": [
     {
       "q": "Aidat borcumu nasıl öğrenebilirim?",
