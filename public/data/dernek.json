@@ -43,12 +43,6 @@
   },
   "documents": [
     {
-      "id": "tuzuk",
-      "title": "Dernek Tüzüğü",
-      "description": "Derneğin amaçları, üyelik ve işleyiş esasları",
-      "url": "belgeler/tuzuk.html"
-    },
-    {
       "id": "uye-formu",
       "title": "Üyelik Başvuru Formu",
       "description": "Yeni üyelik için doldurulacak form",
